@@ -115,18 +115,221 @@ function mockDividendResult(params = {}) {
   }
 }
 
+function buildNestedTrade() {
+  return {
+    tradeInfo: {
+      tradeId: 'TRD20260428001',
+      tradeName: '嵌套交易测试',
+      tradeDate: '20260428',
+      participants: [
+        {
+          participantId: 'P001',
+          name: '参与方A',
+          role: '买方',
+          orders: [
+            {
+              orderId: 'ORD001',
+              productName: '产品A',
+              amount: 1000000.0,
+              details: [
+                { detailId: 'DTL001', feeType: '管理费', feeAmount: 1500.0 },
+                { detailId: 'DTL002', feeType: '托管费', feeAmount: 500.0 }
+              ]
+            },
+            {
+              orderId: 'ORD002',
+              productName: '产品B',
+              amount: 500000.0,
+              details: [
+                { detailId: 'DTL003', feeType: '管理费', feeAmount: 800.0 }
+              ]
+            }
+          ]
+        },
+        {
+          participantId: 'P002',
+          name: '参与方B',
+          role: '卖方',
+          orders: [
+            {
+              orderId: 'ORD003',
+              productName: '产品C',
+              amount: 2000000.0,
+              details: [
+                { detailId: 'DTL004', feeType: '交易佣金', feeAmount: 2000.0 },
+                { detailId: 'DTL005', feeType: '印花税', feeAmount: 1000.0 }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+
+function buildLargeItem(idx) {
+  const item = {}
+  for (let i = 1; i <= 25; i++) {
+    const key = `item_field_${String(i).padStart(2, '0')}`
+    if (i === 1) item[key] = `ITEM-${String(idx).padStart(4, '0')}`
+    else if (i === 2) item[key] = `名称_${idx}`
+    else if (i <= 8) item[key] = `值_${idx}_${i}`
+    else if (i <= 16) item[key] = (idx * 100 + i) * 1.5
+    else if (i <= 24) item[key] = i % 3 === 0
+    else item[key] = `备注_${idx}_${i}`
+  }
+  return item
+}
+
+function buildLargeSubject() {
+  const subject = {}
+  for (let i = 1; i <= 24; i++) {
+    const key = `sub_field_${String(i).padStart(2, '0')}`
+    if (i <= 6) subject[key] = `子字段值_${i}`
+    else if (i <= 12) subject[key] = i * 111
+    else if (i <= 18) subject[key] = i % 2 === 0
+    else subject[key] = `描述_${i}`
+  }
+  subject.sub_field_25_items = Array.from({ length: 25 }, (_, i) => buildLargeItem(i + 1))
+  return subject
+}
+
+function buildLargeFields() {
+  const data = {}
+  for (let i = 1; i <= 24; i++) {
+    const key = `field_${String(i).padStart(2, '0')}`
+    if (i === 1) data[key] = 'LF20260428001'
+    else if (i === 2) data[key] = '超大字段测试交易'
+    else if (i <= 8) data[key] = `文本值_${i}`
+    else if (i <= 14) data[key] = i * 1000
+    else if (i <= 20) data[key] = i % 2 === 0
+    else data[key] = `备注字段_${i}`
+  }
+  data.field_25_subject = buildLargeSubject()
+  return data
+}
+
+const largeFieldsResponse = {
+  request_id: `mock-${Date.now()}`,
+  result_code: '000000000',
+  result_msg: 'SUSSUSS',
+  cost: 35,
+  data: buildLargeFields(),
+  encrypt_data: null
+}
+
+function buildDeepLeaf() {
+  return {
+    level: 9,
+    name: '第九层（叶子节点）',
+    description: '这是最深层的对象，无下级嵌套，包含基本字段',
+    leaf_value_str: '终点',
+    leaf_value_num: 999,
+    leaf_value_bool: true,
+    is_leaf: true
+  }
+}
+
+function buildDeepL7Arr() {
+  return Array.from({ length: 3 }, (_, i) => ({
+    level: 8,
+    name: `第八层数组项_${i + 1}`,
+    item_id: `L8_ITEM_${i + 1}`,
+    go_deeper_L8: buildDeepLeaf()
+  }))
+}
+
+function buildDeepL6Obj() {
+  return {
+    level: 7,
+    name: '第七层（对象）',
+    note: '此层包含一个数组，数组项包含下一级对象',
+    go_deeper_L7_arr: buildDeepL7Arr()
+  }
+}
+
+function buildDeepL5Arr() {
+  return Array.from({ length: 3 }, (_, i) => ({
+    level: 6,
+    name: `第六层数组项_${i + 1}`,
+    item_id: `L6_ITEM_${i + 1}`,
+    go_deeper_L6: buildDeepL6Obj()
+  }))
+}
+
+function buildDeepL4Obj() {
+  return {
+    level: 5,
+    name: '第五层（对象）',
+    note: '此层包含一个数组，数组项包含下一级对象',
+    go_deeper_L5_arr: buildDeepL5Arr()
+  }
+}
+
+function buildDeepL3Arr() {
+  return Array.from({ length: 3 }, (_, i) => ({
+    level: 4,
+    name: `第四层数组项_${i + 1}`,
+    item_id: `L4_ITEM_${i + 1}`,
+    go_deeper_L4: buildDeepL4Obj()
+  }))
+}
+
+function buildDeepL2Obj() {
+  return {
+    level: 3,
+    name: '第三层（对象）',
+    note: '此层包含一个数组，数组项包含下一级对象',
+    go_deeper_L3_arr: buildDeepL3Arr()
+  }
+}
+
+function buildDeepL1Obj() {
+  return {
+    level: 2,
+    name: '第二层（对象）',
+    note: '此层包含一个对象，该对象包含下一级对象',
+    go_deeper_L2: buildDeepL2Obj()
+  }
+}
+
+function buildDeepNested() {
+  return {
+    level: 1,
+    name: '第一层（根数据）',
+    request_id: `deep-${Date.now()}`,
+    note: '共 9 层嵌套：对象 → 对象 → 对象 → 数组 → 对象 → 数组 → 对象 → 数组 → 对象',
+    go_deeper_L1: buildDeepL1Obj()
+  }
+}
+
+const deepNestedResponse = {
+  request_id: `mock-${Date.now()}`,
+  result_code: '000000000',
+  result_msg: 'SUSSUSS',
+  cost: 42,
+  data: buildDeepNested(),
+  encrypt_data: null
+}
+
+const nestedTradeResponse = {
+  request_id: `mock-${Date.now()}`,
+  result_code: '000000000',
+  result_msg: 'SUSSUSS',
+  cost: 56,
+  data: buildNestedTrade(),
+  encrypt_data: null
+}
+
 export function getMockResponse(url, method, params = {}) {
   const normalized = (url || '').toLowerCase().trim()
 
   if (normalized === 'mock://query-conditions') return queryConditionsResponse
   if (normalized === 'mock://field-meta') return fieldMetaResponse
   if (normalized === 'mock://dividend-list') return mockDividendResult(params)
-
-  if (normalized.includes('query-conditions')) return queryConditionsResponse
-  if (normalized.includes('field-meta')) return fieldMetaResponse
-  if (normalized.includes('dividend') || normalized.includes('query_ta_dividend')) {
-    return mockDividendResult(params)
-  }
+  if (normalized === 'mock://nested-trade') return nestedTradeResponse
+  if (normalized === 'mock://large-fields') return largeFieldsResponse
+  if (normalized === 'mock://deep-nested') return deepNestedResponse
 
   return null
 }

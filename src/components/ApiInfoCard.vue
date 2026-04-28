@@ -18,7 +18,7 @@
           </el-form-item>
         </el-col>
 
-        <el-col :span="9">
+        <el-col :span="10">
           <el-form-item label="请求地址 URL">
             <el-input
               :value="url"
@@ -28,20 +28,12 @@
           </el-form-item>
         </el-col>
 
-        <el-col :span="4">
+        <el-col :span="6">
           <el-form-item label="请求方式">
             <el-select :value="method" @change="$emit('update:method', $event)">
               <el-option label="GET" value="GET" />
               <el-option label="POST" value="POST" />
             </el-select>
-          </el-form-item>
-        </el-col>
-
-        <el-col :span="3">
-          <el-form-item label="Content-Type（固定）">
-            <el-input :value="contentType" disabled>
-              <i slot="suffix" class="el-icon-lock" />
-            </el-input>
           </el-form-item>
         </el-col>
       </el-row>
@@ -65,7 +57,6 @@ export default {
     },
     url: String,
     method: String,
-    contentType: String,
     loading: Boolean
   }
 }

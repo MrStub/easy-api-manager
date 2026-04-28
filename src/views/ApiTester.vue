@@ -10,7 +10,6 @@
       :api-options="apiOptions"
       :url="url"
       :method="method"
-      :content-type="contentType"
       :loading="loading"
       @update:apiName="onApiNameChange"
       @update:url="setUrl"
@@ -34,6 +33,7 @@
       :response-time="responseTime"
       :show-pagination="showPagination"
       :pagination="pagination"
+      :trade-name="tradeName"
       @update:activeResultMode="setActiveResultMode"
       @page-change="handleChangePage"
       @size-change="handleChangePageSize"
@@ -58,9 +58,9 @@ export default {
     ...mapState('apiTester', [
       'apiName',
       'apiOptions',
+      'apiUrlMap',
       'url',
       'method',
-      'contentType',
       'jsonText',
       'params',
       'loading',
@@ -68,7 +68,8 @@ export default {
       'statusCode',
       'responseTime',
       'activeResultMode',
-      'pagination'
+      'pagination',
+      'tradeName'
     ]),
     ...mapGetters('apiTester', ['formattedJson', 'showPagination', 'pagedResponseTable'])
   },
@@ -79,22 +80,17 @@ export default {
       setMethod: 'SET_METHOD',
       setJsonText: 'SET_JSON_TEXT',
       setActiveResultMode: 'SET_ACTIVE_RESULT_MODE',
-      resetForm: 'RESET_FORM'
+      resetForm: 'RESET_FORM',
+      setPagination: 'SET_PAGINATION'
     }),
     ...mapActions('apiTester', {
       sendRequestAction: 'sendRequest',
-      parseJsonParamsAction: 'parseJsonParams',
-      changePage: 'changePage',
-      changePageSize: 'changePageSize'
+      parseJsonParamsAction: 'parseJsonParams'
     }),
     onApiNameChange(name) {
       this.setApiName(name)
-      const map = {
-        获取页面查询条件接口: 'mock://query-conditions',
-        获取接口出参字段接口: 'mock://field-meta',
-        '查询分红列表（Mock）': 'mock://dividend-list'
-      }
-      if (map[name]) this.setUrl(map[name])
+      const url = this.apiUrlMap[name]
+      if (url) this.setUrl(url)
     },
     async handleSendRequest() {
       const result = await this.sendRequestAction()
@@ -102,25 +98,16 @@ export default {
         this.$message.warning(result.message)
       }
     },
-    async handleChangePage(page) {
-      const result = await this.changePage(page)
-      if (result && result.message) {
-        this.$message.warning(result.message)
-      }
+    handleChangePage(page) {
+      this.setPagination({ page })
     },
-    async handleChangePageSize(pageSize) {
-      const result = await this.changePageSize(pageSize)
-      if (result && result.message) {
-        this.$message.warning(result.message)
-      }
+    handleChangePageSize(pageSize) {
+      this.setPagination({ page: 1, pageSize })
     }
   },
   watch: {
-    jsonText: {
-      immediate: true,
-      handler() {
-        this.parseJsonParamsAction()
-      }
+    jsonText() {
+      this.parseJsonParamsAction()
     }
   }
 }

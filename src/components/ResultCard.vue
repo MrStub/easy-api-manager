@@ -14,7 +14,7 @@
 
     <el-tabs v-model="localMode" @tab-click="onModeChange">
       <el-tab-pane label="表格视图" name="table">
-        <SimpleTable :list="responseTable.list" :columns="columns" />
+        <SimpleTable :list="responseTable.list" :columns="columns" :trade-name="tradeName" />
         <PaginationBar
           v-if="showPagination"
           :pagination="pagination"
@@ -58,6 +58,10 @@ export default {
     pagination: {
       type: Object,
       required: true
+    },
+    tradeName: {
+      type: String,
+      default: 'query_ta_dividend'
     }
   },
   data() {
@@ -67,7 +71,7 @@ export default {
   },
   computed: {
     columns() {
-      return generateColumns(this.responseTable.list)
+      return generateColumns(this.responseTable.list, this.tradeName)
     }
   },
   watch: {

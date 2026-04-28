@@ -26,8 +26,8 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog :title="detailTitle" :visible.sync="detailVisible" width="760px">
-      <template v-if="isNestedValue(detailValue)">
+    <el-dialog :title="currentDetail.title" :visible.sync="detailVisible" width="760px" @close="closeAll">
+      <template v-if="isNestedValue(currentDetail.value)">
         <el-table :data="pagedDetailRows" border stripe empty-text="暂无数据">
           <el-table-column
             v-for="col in detailColumns"
@@ -50,20 +50,25 @@
             </template>
           </el-table-column>
         </el-table>
-        <div v-if="detailRows.length > detailPagination.pageSize" class="detail-pagination">
+        <div v-if="detailRows.length > currentDetail.pagination.pageSize" class="detail-pagination">
           <el-pagination
             background
             layout="total, sizes, prev, pager, next"
-            :current-page="detailPagination.page"
+            :current-page="currentDetail.pagination.page"
             :page-sizes="[10, 20, 50, 100]"
-            :page-size="detailPagination.pageSize"
+            :page-size="currentDetail.pagination.pageSize"
             :total="detailRows.length"
-            @current-change="detailPagination.page = $event"
+            @current-change="onDetailPageChange"
             @size-change="onDetailPageSizeChange"
           />
         </div>
       </template>
-      <pre v-else class="detail-json">{{ fullValue(detailValue) }}</pre>
+      <pre v-else class="detail-json">{{ fullValue(currentDetail.value) }}</pre>
+
+      <span slot="footer">
+        <el-button v-if="detailStack.length > 1" @click="goBack">返回上一层级</el-button>
+        <el-button type="primary" @click="closeAll">关闭弹窗</el-button>
+      </span>
     </el-dialog>
   </div>
 </template>
@@ -71,8 +76,6 @@
 <script>
 import { formatStatusValue, generateColumns } from '../utils/responseParser'
 import { getFieldLabel } from '../utils/fieldMap'
-
-const DEFAULT_TRADE_NAME = 'query_ta_dividend'
 
 export default {
   name: 'SimpleTable',
@@ -84,30 +87,34 @@ export default {
     columns: {
       type: Array,
       default: () => []
+    },
+    tradeName: {
+      type: String,
+      default: 'query_ta_dividend'
     }
   },
   data() {
     return {
       detailVisible: false,
-      detailTitle: '',
-      detailValue: null,
-      detailPagination: {
-        page: 1,
-        pageSize: 10
-      }
+      detailStack: []
     }
   },
   computed: {
+    currentDetail() {
+      const top = this.detailStack[this.detailStack.length - 1]
+      return top || { title: '', value: null, pagination: { page: 1, pageSize: 10 } }
+    },
     detailRows() {
-      if (Array.isArray(this.detailValue)) return this.toListRows(this.detailValue)
-      return this.toParamRows(this.detailValue)
+      const value = this.currentDetail.value
+      if (Array.isArray(value)) return this.toListRows(value)
+      return this.toParamRows(value)
     },
     detailColumns() {
-      return generateColumns(this.detailRows)
+      return generateColumns(this.detailRows, this.tradeName)
     },
     pagedDetailRows() {
-      const start = (this.detailPagination.page - 1) * this.detailPagination.pageSize
-      return this.detailRows.slice(start, start + this.detailPagination.pageSize)
+      const start = (this.currentDetail.pagination.page - 1) * this.currentDetail.pagination.pageSize
+      return this.detailRows.slice(start, start + this.currentDetail.pagination.pageSize)
     }
   },
   methods: {
@@ -134,7 +141,7 @@ export default {
       return [
         {
           paramName: parentPath || 'value',
-          paramLabel: getFieldLabel(DEFAULT_TRADE_NAME, 'value'),
+          paramLabel: getFieldLabel(this.tradeName, 'value'),
           value
         }
       ]
@@ -153,7 +160,7 @@ export default {
     toParamRow(paramName, fieldName, value) {
       return {
         paramName,
-        paramLabel: getFieldLabel(DEFAULT_TRADE_NAME, fieldName),
+        paramLabel: getFieldLabel(this.tradeName, fieldName),
         value
       }
     },
@@ -165,18 +172,30 @@ export default {
       return `${name}详情`
     },
     openDetail(title, value) {
-      this.detailTitle = title
-      this.detailValue = value
-      this.detailPagination = {
-        page: 1,
-        pageSize: 10
-      }
+      this.detailStack.push({
+        title,
+        value,
+        pagination: { page: 1, pageSize: 10 }
+      })
       this.detailVisible = true
     },
+    goBack() {
+      this.detailStack.pop()
+    },
+    closeAll() {
+      this.detailStack = []
+      this.detailVisible = false
+    },
+    onDetailPageChange(page) {
+      const top = this.detailStack[this.detailStack.length - 1]
+      if (top) {
+        top.pagination.page = page
+      }
+    },
     onDetailPageSizeChange(pageSize) {
-      this.detailPagination = {
-        page: 1,
-        pageSize
+      const top = this.detailStack[this.detailStack.length - 1]
+      if (top) {
+        top.pagination = { page: 1, pageSize }
       }
     },
     statusClass(value) {

@@ -13,7 +13,15 @@ function defaultState() {
   const params = parseJsonToParams(DEFAULT_JSON)
   return {
     apiName: '',
-    apiOptions: ['获取页面查询条件接口', '获取接口出参字段接口', '查询分红列表（Mock）'],
+    apiOptions: ['获取页面查询条件接口', '获取接口出参字段接口', '查询分红列表（Mock）', '查询嵌套交易（Mock）', '查询超多字段交易（Mock）', '查询深层嵌套交易（Mock）'],
+    apiUrlMap: {
+      '获取页面查询条件接口': 'mock://query-conditions',
+      '获取接口出参字段接口': 'mock://field-meta',
+      '查询分红列表（Mock）': 'mock://dividend-list',
+      '查询嵌套交易（Mock）': 'mock://nested-trade',
+      '查询超多字段交易（Mock）': 'mock://large-fields',
+      '查询深层嵌套交易（Mock）': 'mock://deep-nested'
+    },
     url: 'mock://dividend-list',
     method: 'GET',
     contentType: 'application/json',
@@ -32,6 +40,7 @@ function defaultState() {
     statusCode: null,
     responseTime: 0,
     activeResultMode: 'table',
+    tradeName: 'query_ta_dividend',
     pagination: {
       page: 1,
       pageSize: 10,
@@ -43,6 +52,9 @@ function defaultState() {
 function getTradeName(url, params) {
   if (params.interface_code) return params.interface_code
   if ((url || '').includes('query_ta_dividend') || (url || '').includes('dividend')) return 'query_ta_dividend'
+  if ((url || '').includes('nested-trade') || (url || '').includes('nested_trade')) return 'nested_trade'
+  if ((url || '').includes('large-fields') || (url || '').includes('large_fields')) return 'large_fields'
+  if ((url || '').includes('deep-nested') || (url || '').includes('deep_nested')) return 'deep_nested'
   return 'query_ta_dividend'
 }
 
@@ -86,6 +98,9 @@ export default {
     },
     SET_ACTIVE_RESULT_MODE(state, value) {
       state.activeResultMode = value
+    },
+    SET_TRADE_NAME(state, value) {
+      state.tradeName = value
     },
     SET_PAGINATION(state, payload) {
       state.pagination = {
@@ -137,16 +152,20 @@ export default {
       commit('SET_ERROR', '')
       commit('SET_STATUS_CODE', null)
 
+      const tradeName = getTradeName(requestUrl, requestParams)
+      commit('SET_TRADE_NAME', tradeName)
+
+      console.log('api-mananger：[API Tester] request payload', {
+        url: requestUrl,
+        method: state.method,
+        body: state.method === 'GET' ? null : requestParams,
+        params: state.method === 'GET' ? requestParams : null
+      })
+
       try {
         const mockData = getMockResponse(requestUrl, state.method, requestParams)
         let res
         if (mockData) {
-          console.log('api-mananger：[API Tester] request payload', {
-            url: requestUrl,
-            method: state.method,
-            body: state.method === 'GET' ? null : requestParams,
-            params: state.method === 'GET' ? requestParams : null
-          })
           await new Promise((resolve) => setTimeout(resolve, 120))
           res = { status: 200, data: mockData }
         } else {
@@ -163,16 +182,10 @@ export default {
           } else {
             config.data = requestParams
           }
-          console.log('api-mananger：[API Tester] request payload', {
-            url: config.url,
-            method: config.method,
-            body: config.data || null,
-            params: config.params || null
-          })
           res = await request(config)
         }
         const end = Date.now()
-        const table = extractTableData(res.data, getTradeName(requestUrl, requestParams))
+        const table = extractTableData(res.data, tradeName)
 
         commit('SET_RESPONSE_TIME', end - start)
         commit('SET_STATUS_CODE', res.status)
@@ -197,14 +210,6 @@ export default {
         commit('SET_LOADING', false)
       }
     },
-    changePage({ commit }, page) {
-      commit('SET_PAGINATION', { page })
-      return { ok: true }
-    },
-    changePageSize({ commit }, pageSize) {
-      commit('SET_PAGINATION', { page: 1, pageSize })
-      return { ok: true }
-    }
   },
   getters: {
     requestParams: (state) => buildRequestParams(state.params),
