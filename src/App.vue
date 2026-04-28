@@ -1,0 +1,30 @@
+<template>
+  <div id="app">
+    <ApiTester />
+  </div>
+</template>
+
+<script>
+import ApiTester from './views/ApiTester.vue'
+
+export default {
+  name: 'App',
+  components: { ApiTester }
+}
+</script>
+
+<style>
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: #f5f7fb;
+  color: #303133;
+}
+</style>
