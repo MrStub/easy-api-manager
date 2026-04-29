@@ -79,7 +79,7 @@
 
 <script>
 import { formatStatusValue, generateColumns } from '../utils/responseParser'
-import { getFieldLabel } from '../utils/fieldMap'
+import { resolveFieldLabel } from '../utils/fieldMap'
 
 export default {
   name: 'SimpleTable',
@@ -159,7 +159,7 @@ export default {
       return [
         {
           paramName: parentPath || 'value',
-          paramLabel: getFieldLabel(this.tradeName, 'value'),
+          paramLabel: resolveFieldLabel(this.tradeName, 'value', '--'),
           value
         }
       ]
@@ -178,7 +178,7 @@ export default {
     toParamRow(paramName, fieldName, value) {
       return {
         paramName,
-        paramLabel: getFieldLabel(this.tradeName, fieldName),
+        paramLabel: resolveFieldLabel(this.tradeName, fieldName, '--'),
         value
       }
     },

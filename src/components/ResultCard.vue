@@ -40,7 +40,7 @@
 import SimpleTable from './SimpleTable.vue'
 import PaginationBar from './PaginationBar.vue'
 import { generateColumns } from '../utils/responseParser'
-import { getFieldLabel } from '../utils/fieldMap'
+import { resolveFieldLabel } from '../utils/fieldMap'
 
 export default {
   name: 'ResultCard',
@@ -145,14 +145,22 @@ export default {
         this.$message.error('复制失败，请手动复制')
       }
     },
-    async downloadBlob(blob, fileName) {
+    openWechatDownloadWindow() {
+      const downloadWindow = window.open('', '_blank')
+      if (downloadWindow) {
+        downloadWindow.document.write('<p style="font-size:16px;line-height:1.8;padding:24px;">Excel 正在生成，请稍候...</p>')
+      }
+      return downloadWindow
+    },
+    async downloadBlob(blob, fileName, preparedWindow = null) {
       const nav = window.navigator
       if (nav.msSaveOrOpenBlob) {
         nav.msSaveOrOpenBlob(blob, fileName)
         return true
       }
 
-      const url = window.URL.createObjectURL(blob)
+      const urlApi = window.URL || window.webkitURL
+      const url = urlApi.createObjectURL(blob)
       const link = document.createElement('a')
       link.style.display = 'none'
       link.href = url
@@ -161,17 +169,13 @@ export default {
       link.click()
       document.body.removeChild(link)
 
-      const inWechat = this.isWechatBrowser()
-      if (inWechat || this.isMobileBrowser()) {
-        // 微信/iOS 的 download 支持并不稳定，补充 open 降级
-        setTimeout(() => {
-          window.open(url, '_blank')
-        }, 50)
+      if (preparedWindow && !preparedWindow.closed) {
+        preparedWindow.location.href = url
       }
 
       setTimeout(() => {
-        window.URL.revokeObjectURL(url)
-      }, 2000)
+        urlApi.revokeObjectURL(url)
+      }, 10000)
 
       return true
     },
@@ -192,7 +196,7 @@ export default {
       if (value && typeof value === 'object' && !Array.isArray(value)) {
         return Object.keys(value).map((key) => ({
           paramName: key,
-          paramLabel: getFieldLabel(this.tradeName, key),
+          paramLabel: resolveFieldLabel(this.tradeName, key, '--'),
           value: value[key]
         }))
       }
@@ -220,6 +224,7 @@ export default {
         this.$message.warning('暂无可导出的数据')
         return
       }
+      const preparedWindow = this.isWechatBrowser() ? this.openWechatDownloadWindow() : null
 
       const XLSX = await import('xlsx-js-style')
       const wb = XLSX.utils.book_new()
@@ -360,7 +365,7 @@ export default {
       const blob = new Blob([wbout], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       })
-      await this.downloadBlob(blob, fileName)
+      await this.downloadBlob(blob, fileName, preparedWindow)
       if (this.isWechatBrowser()) {
         this.$message.success('已触发下载；若微信内未自动下载，请右上角选择在浏览器打开后下载')
       } else {

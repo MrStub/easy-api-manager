@@ -1,4 +1,4 @@
-import { getFieldLabel } from './fieldMap'
+import { resolveFieldLabel } from './fieldMap'
 
 function buildDataRows(data, tradeName) {
   if (Array.isArray(data)) {
@@ -11,7 +11,7 @@ function buildDataRows(data, tradeName) {
   if (data && typeof data === 'object') {
     return Object.keys(data).map((key) => ({
       paramName: key,
-      paramLabel: getFieldLabel(tradeName, key),
+      paramLabel: resolveFieldLabel(tradeName, key, '--'),
       value: data[key]
     }))
   }
@@ -21,7 +21,7 @@ function buildDataRows(data, tradeName) {
   return [
     {
       paramName: 'value',
-      paramLabel: getFieldLabel(tradeName, 'value'),
+      paramLabel: resolveFieldLabel(tradeName, 'value', '--'),
       value: data
     }
   ]
@@ -49,9 +49,9 @@ export function generateColumns(list = [], tradeName = 'query_ta_dividend') {
   if (!Array.isArray(list) || list.length === 0) return []
   if (list.some((row) => Object.prototype.hasOwnProperty.call(row || {}, 'paramName'))) {
     return [
-      { prop: 'paramName', label: getFieldLabel('common', 'paramName') },
-      { prop: 'paramLabel', label: getFieldLabel('common', 'paramLabel') },
-      { prop: 'value', label: getFieldLabel('common', 'value') }
+      { prop: 'paramName', label: resolveFieldLabel('common', 'paramName', '参数名') },
+      { prop: 'paramLabel', label: resolveFieldLabel('common', 'paramLabel', '参数中文含义') },
+      { prop: 'value', label: resolveFieldLabel('common', 'value', '值') }
     ]
   }
 
@@ -65,7 +65,7 @@ export function generateColumns(list = [], tradeName = 'query_ta_dividend') {
 
   return keys.map((key) => ({
     prop: key,
-    label: getFieldLabel('common', key) || getFieldLabel(tradeName, key) || key
+    label: resolveFieldLabel('common', key, '') || resolveFieldLabel(tradeName, key, key)
   }))
 }
 

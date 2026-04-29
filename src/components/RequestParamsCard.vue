@@ -16,8 +16,8 @@
               v-if="item.inputType === 'date'"
               :value="queryForm[item.fieldName]"
               type="date"
-              value-format="yyyyMMdd"
-              format="yyyy-MM-dd"
+              :value-format="dateValueFormat(item)"
+              :format="dateDisplayFormat(item)"
               :placeholder="item.placeholder || '请选择日期'"
               style="width: 100%"
               @input="(v) => onFieldChange(item, v)"
@@ -97,6 +97,13 @@ export default {
     formatValue(value) {
       if (typeof value === 'object' && value !== null) return JSON.stringify(value)
       return value
+    },
+    dateValueFormat(item) {
+      return item.dateFormat || 'yyyyMMdd'
+    },
+    dateDisplayFormat(item) {
+      if (item.dateFormat === 'yyyy-MM-dd') return 'yyyy-MM-dd'
+      return 'yyyy-MM-dd'
     }
   }
 }

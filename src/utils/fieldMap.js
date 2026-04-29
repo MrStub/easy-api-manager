@@ -194,3 +194,8 @@ export function getFieldLabel(tradeName, fieldName) {
   if (!fieldName) return '--'
   return FIELD_LABEL_MAP[`${tradeName}_${fieldName}`] || '--'
 }
+
+export function resolveFieldLabel(tradeName, fieldName, fallback = fieldName) {
+  if (!fieldName) return fallback || ''
+  return FIELD_LABEL_MAP[`${tradeName}_${fieldName}`] || fallback || ''
+}

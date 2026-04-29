@@ -31,11 +31,14 @@ function buildInterfaceState(list = []) {
 const DEFAULT_FORM = {}
 
 function buildParamsFromForm(queryForm = {}) {
-  return Object.keys(queryForm).map((key) => ({
-    name: key,
-    value: queryForm[key],
-    type: getValueType(queryForm[key])
-  }))
+  return Object.keys(queryForm).map((key) => {
+    const value = normalizeRequestValue(queryForm[key])
+    return {
+      name: key,
+      value,
+      type: getValueType(value)
+    }
+  })
 }
 
 function normalizeQueryConditions(data = {}) {
@@ -96,6 +99,15 @@ function isEmptyValue(value) {
   return value === '' || value === null || value === undefined
 }
 
+function isBlankValue(value) {
+  return value === null || value === undefined || (typeof value === 'string' && value.trim() === '')
+}
+
+function normalizeRequestValue(value) {
+  if (typeof value === 'string') return value.trim()
+  return value
+}
+
 function formatToday(dateFormat) {
   const now = new Date()
   const year = now.getFullYear()
@@ -145,7 +157,8 @@ function defaultState() {
   }
 }
 
-function getTradeName(url, params) {
+function getTradeName(url, params, preferredTradeName = '') {
+  if (preferredTradeName) return preferredTradeName
   if (params.interface_code) return params.interface_code
   if ((url || '').includes('query_ta_dividend') || (url || '').includes('dividend')) return 'query_ta_dividend'
   if ((url || '').includes('nested-trade') || (url || '').includes('nested_trade')) return 'nested_trade'
@@ -339,7 +352,7 @@ export default {
         return { ok: false, message: '请求方式必须存在' }
       }
 
-      const missingRequired = state.queryConditions.find((item) => item.required && isEmptyValue(state.queryForm[item.fieldName]))
+      const missingRequired = state.queryConditions.find((item) => item.required && isBlankValue(state.queryForm[item.fieldName]))
       if (missingRequired) {
         return { ok: false, message: `${missingRequired.chineseName || missingRequired.fieldName}不能为空` }
       }
@@ -351,7 +364,8 @@ export default {
       commit('SET_ERROR', '')
       commit('SET_STATUS_CODE', null)
 
-      const tradeName = getTradeName(requestUrl, requestParams)
+      const selectedTradeName = state.interfaceCodeMap?.[state.apiName] || ''
+      const tradeName = getTradeName(requestUrl, requestParams, selectedTradeName)
       commit('SET_TRADE_NAME', tradeName)
 
       console.log('api-mananger：[API Tester] request payload', {
