@@ -20,6 +20,7 @@
       :query-form="queryForm"
       :json-text="jsonText"
       :loading="loading"
+      :params="params"
       @update:field="handleFieldChange"
       @send="handleSendRequest"
       @clear="resetForm"

@@ -209,6 +209,12 @@ export default {
       const base = String(raw || 'Sheet').replace(/[\\/?*[\]:]/g, '_').slice(0, 31) || 'Sheet'
       return base
     },
+    sanitizeFileName(raw) {
+      return String(raw || '')
+        .replace(/[\\/:*?"<>|]/g, '_')
+        .replace(/\s+/g, '_')
+        .slice(0, 80)
+    },
     async exportExcel() {
       if (!this.exportRows.length) {
         this.$message.warning('暂无可导出的数据')
@@ -348,7 +354,8 @@ export default {
 
       const rootTitle = this.tradeName || '返回结果'
       appendSheetForValue(rootTitle, this.exportRows)
-      const fileName = `api_result_${Date.now()}.xlsx`
+      const tradePart = this.sanitizeFileName(this.tradeName || 'api_result') || 'api_result'
+      const fileName = `${tradePart}_${Date.now()}.xlsx`
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
       const blob = new Blob([wbout], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
