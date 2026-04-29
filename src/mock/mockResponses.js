@@ -48,6 +48,88 @@ const queryConditionsResponse = {
   encrypt_data: null
 }
 
+const nestedTradeQueryConditionsResponse = {
+  request_id: '69f045f2372207f56dd1b7ce',
+  result_code: '000000000',
+  result_msg: 'SUSSUSS',
+  cost: 96,
+  data: {
+    apiUri: '/dataservice/mock/nested_trade',
+    paged: false,
+    queryConditions: [
+      {
+        fieldName: 'tradeDate',
+        chineseName: '交易日期',
+        fieldType: 'String',
+        inputType: 'date',
+        placeholder: 'yyyyMMdd',
+        required: true,
+        order: 1,
+        dateFormat: 'yyyyMMdd'
+      },
+      {
+        fieldName: 'tradeId',
+        chineseName: '交易ID',
+        fieldType: 'String',
+        inputType: 'text',
+        placeholder: '请输入交易ID',
+        required: false,
+        order: 2
+      }
+    ],
+    pageConditions: []
+  },
+  encrypt_data: null
+}
+
+const largeFieldsQueryConditionsResponse = {
+  request_id: '69f045f2372207f56dd1b7cf',
+  result_code: '000000000',
+  result_msg: 'SUSSUSS',
+  cost: 92,
+  data: {
+    apiUri: '/dataservice/mock/large_fields',
+    paged: false,
+    queryConditions: [
+      {
+        fieldName: 'batchNo',
+        chineseName: '批次号',
+        fieldType: 'String',
+        inputType: 'text',
+        placeholder: '请输入批次号',
+        required: false,
+        order: 1
+      }
+    ],
+    pageConditions: []
+  },
+  encrypt_data: null
+}
+
+const deepNestedQueryConditionsResponse = {
+  request_id: '69f045f2372207f56dd1b7d0',
+  result_code: '000000000',
+  result_msg: 'SUSSUSS',
+  cost: 90,
+  data: {
+    apiUri: '/dataservice/mock/deep_nested',
+    paged: false,
+    queryConditions: [
+      {
+        fieldName: 'requestId',
+        chineseName: '请求ID',
+        fieldType: 'String',
+        inputType: 'text',
+        placeholder: '可不填，默认随机',
+        required: false,
+        order: 1
+      }
+    ],
+    pageConditions: []
+  },
+  encrypt_data: null
+}
+
 const fieldMetaResponse = {
   request_id: '69f00f05d6808e0b00417a73',
   result_code: '000000000',
@@ -321,10 +403,35 @@ const nestedTradeResponse = {
   encrypt_data: null
 }
 
+const interfaceListResponse = {
+  request_id: `mock-${Date.now()}`,
+  result_code: '000000000',
+  result_msg: 'SUSSUSS',
+  cost: 35,
+  data: {
+    list: [
+      { apiName: '查询分红列表（Mock）', url: 'mock://dividend-list', interfaceCode: 'query_ta_dividend', method: 'GET' },
+      { apiName: '查询嵌套交易（Mock）', url: 'mock://nested-trade', interfaceCode: 'nested_trade', method: 'GET' },
+      { apiName: '查询超多字段交易（Mock）', url: 'mock://large-fields', interfaceCode: 'large_fields', method: 'GET' },
+      { apiName: '查询深层嵌套交易（Mock）', url: 'mock://deep-nested', interfaceCode: 'deep_nested', method: 'GET' }
+    ]
+  },
+  encrypt_data: null
+}
+
+function getQueryConditionTemplate(interfaceCode) {
+  if (interfaceCode === 'query_ta_dividend') return queryConditionsResponse
+  if (interfaceCode === 'nested_trade') return nestedTradeQueryConditionsResponse
+  if (interfaceCode === 'large_fields') return largeFieldsQueryConditionsResponse
+  if (interfaceCode === 'deep_nested') return deepNestedQueryConditionsResponse
+  return queryConditionsResponse
+}
+
 export function getMockResponse(url, method, params = {}) {
   const normalized = (url || '').toLowerCase().trim()
 
-  if (normalized === 'mock://query-conditions') return queryConditionsResponse
+  if (normalized === 'mock://interface-list') return interfaceListResponse
+  if (normalized === 'mock://query-conditions') return getQueryConditionTemplate(params.interface_code)
   if (normalized === 'mock://field-meta') return fieldMetaResponse
   if (normalized === 'mock://dividend-list') return mockDividendResult(params)
   if (normalized === 'mock://nested-trade') return nestedTradeResponse

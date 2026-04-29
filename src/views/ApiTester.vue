@@ -10,23 +10,25 @@
       :api-options="apiOptions"
       :url="url"
       :method="method"
-      :loading="loading"
       @update:apiName="onApiNameChange"
       @update:url="setUrl"
       @update:method="setMethod"
-      @send="handleSendRequest"
-      @clear="resetForm"
     />
 
     <RequestParamsCard
+      :query-conditions="queryConditions"
+      :query-form="queryForm"
       :json-text="jsonText"
-      :params="params"
-      @update:jsonText="setJsonText"
+      :loading="loading"
+      @update:field="handleFieldChange"
+      @send="handleSendRequest"
+      @clear="resetForm"
     />
 
     <ResultCard
       :active-result-mode="activeResultMode"
       :response-table="pagedResponseTable"
+      :full-response-table="responseTable"
       :formatted-json="formattedJson"
       :error="error"
       :status-code="statusCode"
@@ -62,7 +64,10 @@ export default {
       'url',
       'method',
       'jsonText',
+      'queryConditions',
+      'queryForm',
       'params',
+      'responseTable',
       'loading',
       'error',
       'statusCode',
@@ -78,19 +83,29 @@ export default {
       setApiName: 'SET_API_NAME',
       setUrl: 'SET_URL',
       setMethod: 'SET_METHOD',
-      setJsonText: 'SET_JSON_TEXT',
       setActiveResultMode: 'SET_ACTIVE_RESULT_MODE',
       resetForm: 'RESET_FORM',
       setPagination: 'SET_PAGINATION'
     }),
     ...mapActions('apiTester', {
       sendRequestAction: 'sendRequest',
-      parseJsonParamsAction: 'parseJsonParams'
+      fetchInterfaceListAction: 'fetchInterfaceList',
+      fetchQueryConditionsAction: 'fetchQueryConditions',
+      updateQueryFieldAction: 'updateQueryField'
     }),
-    onApiNameChange(name) {
+    async onApiNameChange(name) {
       this.setApiName(name)
       const url = this.apiUrlMap[name]
       if (url) this.setUrl(url)
+      const method = this.$store.state.apiTester.interfaceMethodMap?.[name]
+      if (method) this.setMethod(method)
+      const result = await this.fetchQueryConditionsAction(name)
+      if (result && result.message) {
+        this.$message.warning(result.message)
+      }
+    },
+    handleFieldChange(payload) {
+      this.updateQueryFieldAction(payload)
     },
     async handleSendRequest() {
       const result = await this.sendRequestAction()
@@ -105,9 +120,10 @@ export default {
       this.setPagination({ page: 1, pageSize })
     }
   },
-  watch: {
-    jsonText() {
-      this.parseJsonParamsAction()
+  async mounted() {
+    const result = await this.fetchInterfaceListAction()
+    if (result && result.message) {
+      this.$message.warning(result.message)
     }
   }
 }

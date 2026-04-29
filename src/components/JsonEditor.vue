@@ -4,6 +4,7 @@
     :rows="rows"
     :value="value"
     :placeholder="placeholder"
+    :readonly="readonly"
     class="json-editor"
     @input="$emit('input', $event)"
   />
@@ -24,6 +25,10 @@ export default {
     placeholder: {
       type: String,
       default: '请输入 JSON'
+    },
+    readonly: {
+      type: Boolean,
+      default: false
     }
   }
 }

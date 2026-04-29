@@ -14,6 +14,9 @@
 
     <el-tabs v-model="localMode" @tab-click="onModeChange">
       <el-tab-pane label="表格视图" name="table">
+        <div class="table-tools">
+          <el-button size="mini" type="primary" plain :disabled="!exportRows.length" @click="exportExcel">导出 Excel</el-button>
+        </div>
         <SimpleTable :list="responseTable.list" :columns="columns" :trade-name="tradeName" />
         <PaginationBar
           v-if="showPagination"
@@ -37,6 +40,7 @@
 import SimpleTable from './SimpleTable.vue'
 import PaginationBar from './PaginationBar.vue'
 import { generateColumns } from '../utils/responseParser'
+import { getFieldLabel } from '../utils/fieldMap'
 
 export default {
   name: 'ResultCard',
@@ -46,6 +50,10 @@ export default {
     responseTable: {
       type: Object,
       required: true
+    },
+    fullResponseTable: {
+      type: Object,
+      default: () => ({ list: [] })
     },
     formattedJson: String,
     error: String,
@@ -72,6 +80,11 @@ export default {
   computed: {
     columns() {
       return generateColumns(this.responseTable.list, this.tradeName)
+    },
+    exportRows() {
+      const fullList = this.fullResponseTable?.list
+      if (Array.isArray(fullList) && fullList.length) return fullList
+      return Array.isArray(this.responseTable?.list) ? this.responseTable.list : []
     }
   },
   watch: {
@@ -91,6 +104,182 @@ export default {
       } catch (e) {
         this.$message.error('复制失败，请手动复制')
       }
+    },
+    normalizeExportValue(value) {
+      if (value === null || value === undefined) return ''
+      if (typeof value === 'object') return JSON.stringify(value)
+      return value
+    },
+    calcDisplayWidth(text) {
+      return String(text || '').split('').reduce((sum, ch) => {
+        return sum + (/[^\x00-\xff]/.test(ch) ? 2 : 1)
+      }, 0)
+    },
+    isNestedValue(value) {
+      return value && typeof value === 'object'
+    },
+    toParamRows(value) {
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        return Object.keys(value).map((key) => ({
+          paramName: key,
+          paramLabel: getFieldLabel(this.tradeName, key),
+          value: value[key]
+        }))
+      }
+      return [{ value }]
+    },
+    toListRows(value) {
+      if (!Array.isArray(value)) return []
+      return value.map((item) => {
+        if (item && typeof item === 'object' && !Array.isArray(item)) return item
+        return { value: item }
+      })
+    },
+    sanitizeSheetName(raw) {
+      const base = String(raw || 'Sheet').replace(/[\\/?*[\]:]/g, '_').slice(0, 31) || 'Sheet'
+      return base
+    },
+    async exportExcel() {
+      if (!this.exportRows.length) {
+        this.$message.warning('暂无可导出的数据')
+        return
+      }
+
+      const XLSX = await import('xlsx-js-style')
+      const wb = XLSX.utils.book_new()
+      const usedSheetNames = new Set()
+      let sheetCounter = 0
+
+      const makeUniqueSheetName = (baseName) => {
+        const seed = this.sanitizeSheetName(baseName) || 'Sheet'
+        let name = seed
+        let idx = 1
+        while (usedSheetNames.has(name)) {
+          const suffix = `_${idx}`
+          name = `${seed.slice(0, Math.max(1, 31 - suffix.length))}${suffix}`
+          idx += 1
+        }
+        usedSheetNames.add(name)
+        return name
+      }
+
+      const appendSheetForValue = (title, value, fixedName = '') => {
+        let rows = []
+        if (Array.isArray(value)) rows = this.toListRows(value)
+        else if (this.isNestedValue(value)) rows = this.toParamRows(value)
+        else rows = [{ value }]
+
+        const cols = generateColumns(rows, this.tradeName)
+        const sheetName = fixedName || makeUniqueSheetName(`${title}_${++sheetCounter}`)
+        const aoa = [cols.map((col) => col.label)]
+        const pendingLinks = []
+        const childTasks = []
+
+        rows.forEach((row, rowIdx) => {
+          const outRow = []
+          cols.forEach((col, colIdx) => {
+            const cellValue = row[col.prop]
+            if (this.isNestedValue(cellValue)) {
+              const childName = makeUniqueSheetName(`${sheetName}_${col.label}_${rowIdx + 1}`)
+              childTasks.push({
+                title: `${sheetName}_${col.label}_${rowIdx + 1}`,
+                value: cellValue,
+                sheetName: childName
+              })
+              outRow.push('查看详情')
+              pendingLinks.push({
+                r: rowIdx + 1,
+                c: colIdx,
+                target: `#'${childName}'!A1`
+              })
+            } else {
+              outRow.push(this.normalizeExportValue(cellValue))
+            }
+          })
+          aoa.push(outRow)
+        })
+
+        const ws = XLSX.utils.aoa_to_sheet(aoa)
+        const colsWidth = cols.map((col) => {
+          const headerWidth = this.calcDisplayWidth(col.label || '')
+          const bodyWidth = rows.reduce((max, row) => {
+            const cellValue = row[col.prop]
+            if (this.isNestedValue(cellValue)) return Math.max(max, 12)
+            const text = String(this.normalizeExportValue(cellValue) || '')
+            const lines = text.split('\n')
+            const longest = lines.reduce((m, line) => Math.max(m, this.calcDisplayWidth(line)), 0)
+            return Math.max(max, Math.min(60, longest))
+          }, 8)
+          return { wch: Math.min(60, Math.max(12, headerWidth + 2, bodyWidth + 2)) }
+        })
+
+        ws['!cols'] = colsWidth
+
+        const maxRow = aoa.length - 1
+        const maxCol = cols.length - 1
+        for (let r = 0; r <= maxRow; r += 1) {
+          for (let c = 0; c <= maxCol; c += 1) {
+            const addr = XLSX.utils.encode_cell({ r, c })
+            if (!ws[addr]) ws[addr] = { t: 's', v: '' }
+            const baseStyle = {
+              alignment: {
+                wrapText: true,
+                vertical: 'top',
+                horizontal: 'left'
+              }
+            }
+            if (r === 0) {
+              ws[addr].s = {
+                ...baseStyle,
+                font: {
+                  bold: true
+                }
+              }
+            } else if (!ws[addr].s) {
+              ws[addr].s = baseStyle
+            } else {
+              ws[addr].s = {
+                ...ws[addr].s,
+                alignment: {
+                  wrapText: true,
+                  vertical: 'top',
+                  horizontal: 'left'
+                }
+              }
+            }
+          }
+        }
+
+        pendingLinks.forEach((link) => {
+          const addr = XLSX.utils.encode_cell({ r: link.r, c: link.c })
+          if (!ws[addr]) ws[addr] = { t: 's', v: '查看详情' }
+          ws[addr].v = '查看详情'
+          ws[addr].t = 's'
+          ws[addr].l = { Target: link.target, Tooltip: '点击查看详情' }
+          ws[addr].s = {
+            font: {
+              color: { rgb: '0563C1' },
+              underline: true
+            },
+            alignment: {
+              wrapText: true,
+              vertical: 'top',
+              horizontal: 'left'
+            }
+          }
+        })
+        XLSX.utils.book_append_sheet(wb, ws, sheetName)
+
+        childTasks.forEach((task) => {
+          appendSheetForValue(task.title, task.value, task.sheetName)
+        })
+        return sheetName
+      }
+
+      const rootTitle = this.tradeName || '返回结果'
+      appendSheetForValue(rootTitle, this.exportRows)
+      XLSX.writeFile(wb, `api_result_${Date.now()}.xlsx`)
+      this.$message.success('Excel 导出成功')
     }
   }
 }
@@ -125,6 +314,12 @@ export default {
 }
 
 .json-tools {
+  margin-bottom: 8px;
+}
+
+.table-tools {
+  display: flex;
+  justify-content: flex-end;
   margin-bottom: 8px;
 }
 

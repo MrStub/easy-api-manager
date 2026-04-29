@@ -7,8 +7,6 @@
           <el-form-item label="接口名称">
             <el-select
               filterable
-              allow-create
-              default-first-option
               :value="apiName"
               placeholder="可输入或选择已有接口"
               @change="$emit('update:apiName', $event)"
@@ -38,10 +36,6 @@
         </el-col>
       </el-row>
 
-      <div class="actions">
-        <el-button type="primary" :loading="loading" @click="$emit('send')">发送请求</el-button>
-        <el-button @click="$emit('clear')">清空</el-button>
-      </div>
     </el-form>
   </el-card>
 </template>
@@ -66,9 +60,5 @@ export default {
 .card-title {
   font-size: 24px;
   font-weight: 600;
-}
-
-.actions {
-  margin-top: 4px;
 }
 </style>

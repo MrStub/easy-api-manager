@@ -1,0 +1,342 @@
+---1、获取页面查询条件接口：
+---1.1获取页面查询条件接口-入参：
+{
+    "params":{
+        "interface_code":"query_ta_dividend"
+    }
+}
+
+---1.2 获取页面查询条件接口-出参：
+{
+    "request_id": "69f045f2372207f56dd1b7cd",
+    "result_code": "000000000",
+    "result_msg": "SUSSUSS",
+    "cost": 113,
+    "data": {
+        "apiUri": "/dataservice/outer/ta/query_ta_dividend",
+        "paged": true,
+        "queryConditions": [
+            {
+                "fieldName": "bgcfmdate",
+                "chineseName": "开始日期",
+                "fieldType": "String",
+                "inputType": "date",
+                "placeholder": "yyyyMMdd",
+                "required": true,
+                "order": 1,
+                "dateFormat": "yyyyMMdd"
+            },
+            {
+                "fieldName": "endcfmdate",
+                "chineseName": "结束日期",
+                "fieldType": "String",
+                "inputType": "date",
+                "placeholder": "yyyyMMdd",
+                "required": true,
+                "order": 2,
+                "dateFormat": "yyyyMMdd"
+            }
+        ],
+        "pageConditions": [
+            {
+                "fieldName": "curr_page",
+                "chineseName": "当前页码",
+                "fieldType": "Integer",
+                "defaultValue": "1",
+                "description": "分页查询的当前页码，从1开始"
+            },
+            {
+                "fieldName": "curr_page_size",
+                "chineseName": "每页记录数",
+                "fieldType": "Integer",
+                "defaultValue": "20",
+                "description": "每页返回的记录数量"
+            }
+        ]
+    },
+    "encrypt_data": null
+}
+
+--------------------------------------------------------------------------------
+---2、获取接口出参字段接口：
+---2.1 获取接口出参字段接口-入参：
+{
+    "params":{
+        "interface_code":"query_ta_dividend"
+    }
+}
+
+---2.2 获取接口出参字段接口-出参：
+{
+    "request_id": "69f00f05d6808e0b00417a73",
+    "result_code": "000000000",
+    "result_msg": "SUSSUSS",
+    "cost": 83,
+    "data": {
+        "paged": true,
+        "fields": [
+            {
+                "fieldName": "taaccountid",
+                "chineseName": "投资人基金帐号",
+                "visible": true,
+                "dataType": "text",
+                "order": 1
+            },
+            {
+                "fieldName": "confirmdate",
+                "chineseName": "确认日期",
+                "visible": true,
+                "dataType": "text",
+                "order": 2
+            },
+            {
+                "fieldName": "fundcode",
+                "chineseName": "基金代码",
+                "visible": true,
+                "dataType": "text",
+                "order": 3
+            },
+            {
+                "fieldName": "sharetype",
+                "chineseName": "份额类型",
+                "visible": true,
+                "dataType": "text",
+                "order": 4
+            },
+            {
+                "fieldName": "distributorcode",
+                "chineseName": "销售人代码",
+                "visible": true,
+                "dataType": "text",
+                "order": 5
+            },
+            {
+                "fieldName": "branchcode",
+                "chineseName": "网点号码",
+                "visible": true,
+                "dataType": "text",
+                "order": 6
+            },
+            {
+                "fieldName": "basisforcalculatingdividend",
+                "chineseName": "分红的份额基数",
+                "visible": true,
+                "dataType": "text",
+                "order": 7
+            },
+            {
+                "fieldName": "dividendorshare",
+                "chineseName": "红利/红股标志",
+                "visible": true,
+                "dataType": "text",
+                "order": 8
+            },
+            {
+                "fieldName": "volofdividedforreinvestment",
+                "chineseName": "红股份数（再投资份额）",
+                "visible": true,
+                "dataType": "text",
+                "order": 9
+            },
+            {
+                "fieldName": "dividendamount",
+                "chineseName": "红利总金额",
+                "visible": true,
+                "dataType": "text",
+                "order": 10
+            },
+            {
+                "fieldName": "commission",
+                "chineseName": "手续费(再投资费用)",
+                "visible": true,
+                "dataType": "text",
+                "order": 11
+            },
+            {
+                "fieldName": "stampduty",
+                "chineseName": "印花税（业绩报酬）",
+                "visible": true,
+                "dataType": "text",
+                "order": 12
+            },
+            {
+                "fieldName": "dividendindeed",
+                "chineseName": "实发红利金额",
+                "visible": true,
+                "dataType": "text",
+                "order": 13
+            },
+            {
+                "fieldName": "currencytype",
+                "chineseName": "结算币种",
+                "visible": true,
+                "dataType": "text",
+                "order": 14
+            },
+            {
+                "fieldName": "registrationdate",
+                "chineseName": "权益登记日期",
+                "visible": true,
+                "dataType": "text",
+                "order": 15
+            },
+            {
+                "fieldName": "dividentdate",
+                "chineseName": "分红发放日",
+                "visible": true,
+                "dataType": "text",
+                "order": 16
+            },
+            {
+                "fieldName": "lastdate",
+                "chineseName": "再投资发放日",
+                "visible": true,
+                "dataType": "text",
+                "order": 17
+            },
+            {
+                "fieldName": "tradeacco",
+                "chineseName": "交易账号",
+                "visible": true,
+                "dataType": "text",
+                "order": 18
+            },
+            {
+                "fieldName": "frozenshares",
+                "chineseName": "冻结份额",
+                "visible": true,
+                "dataType": "text",
+                "order": 19
+            },
+            {
+                "fieldName": "frozenbalance",
+                "chineseName": "冻结金额",
+                "visible": true,
+                "dataType": "text",
+                "order": 20
+            },
+            {
+                "fieldName": "netvalue",
+                "chineseName": "再投资单位净值",
+                "visible": true,
+                "dataType": "text",
+                "order": 21
+            },
+            {
+                "fieldName": "cserialno",
+                "chineseName": "TA确认编号",
+                "visible": true,
+                "dataType": "text",
+                "order": 22
+            },
+            {
+                "fieldName": "unitprofit2",
+                "chineseName": "每单位基金分红金额",
+                "visible": true,
+                "dataType": "text",
+                "order": 23
+            },
+            {
+                "fieldName": "reinvestbalance",
+                "chineseName": "再投资金额",
+                "visible": true,
+                "dataType": "text",
+                "order": 24
+            },
+            {
+                "fieldName": "dividend",
+                "chineseName": "中登模式TA分红业绩报酬",
+                "visible": true,
+                "dataType": "text",
+                "order": 25
+            },
+            {
+                "fieldName": "memo",
+                "chineseName": "备注",
+                "visible": true,
+                "dataType": "text",
+                "order": 26
+            },
+            {
+                "fieldName": "manager_name",
+                "chineseName": "管理人名字",
+                "visible": true,
+                "dataType": "text",
+                "order": 27
+            },
+            {
+                "fieldName": "manager_no",
+                "chineseName": "管理人代码",
+                "visible": true,
+                "dataType": "text",
+                "order": 28
+            },
+            {
+                "fieldName": "investorname",
+                "chineseName": "投资者名称",
+                "visible": true,
+                "dataType": "text",
+                "order": 29
+            },
+            {
+                "fieldName": "agencyname",
+                "chineseName": "销售商名称",
+                "visible": true,
+                "dataType": "text",
+                "order": 30
+            },
+            {
+                "fieldName": "fundname",
+                "chineseName": "产品名称",
+                "visible": true,
+                "dataType": "text",
+                "order": 31
+            }
+        ],
+        "pageResults": [
+            {
+                "fieldName": "total_size",
+                "chineseName": "总记录数",
+                "fieldType": "Long",
+                "defaultValue": null,
+                "description": "符合条件的总记录数"
+            },
+            {
+                "fieldName": "total_page_num",
+                "chineseName": "总页数",
+                "fieldType": "Integer",
+                "defaultValue": null,
+                "description": "总页数"
+            },
+            {
+                "fieldName": "page_size",
+                "chineseName": "每页记录数",
+                "fieldType": "Integer",
+                "defaultValue": null,
+                "description": "每页返回的记录数量"
+            },
+            {
+                "fieldName": "curr_page",
+                "chineseName": "当前页码",
+                "fieldType": "Integer",
+                "defaultValue": null,
+                "description": "当前页码"
+            },
+            {
+                "fieldName": "curr_page_size",
+                "chineseName": "当前页记录数",
+                "fieldType": "Integer",
+                "defaultValue": null,
+                "description": "当前页实际返回的记录数"
+            },
+            {
+                "fieldName": "list",
+                "chineseName": "数据列表",
+                "fieldType": "List",
+                "defaultValue": null,
+                "description": "当前页的数据列表"
+            }
+        ]
+    },
+    "encrypt_data": null
+}

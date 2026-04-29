@@ -1,31 +1,127 @@
 import request from '../../api/request'
-import { parseJsonToParams, buildRequestParams } from '../../utils/json'
+import { buildRequestParams, getValueType } from '../../utils/json'
 import { extractTableData } from '../../utils/responseParser'
 import { getMockResponse } from '../../mock/mockResponses'
 
-const DEFAULT_JSON = `{
-  "page": 1,
-  "pageSize": 10,
-  "keyword": "张三"
-}`
+const FALLBACK_INTERFACES = [
+  { apiName: '查询分红列表（Mock）', url: 'mock://dividend-list', interfaceCode: 'query_ta_dividend', method: 'GET' },
+  { apiName: '查询嵌套交易（Mock）', url: 'mock://nested-trade', interfaceCode: 'nested_trade', method: 'GET' },
+  { apiName: '查询超多字段交易（Mock）', url: 'mock://large-fields', interfaceCode: 'large_fields', method: 'GET' },
+  { apiName: '查询深层嵌套交易（Mock）', url: 'mock://deep-nested', interfaceCode: 'deep_nested', method: 'GET' }
+]
+
+function buildInterfaceState(list = []) {
+  const apiOptions = list.map((item) => item.apiName)
+  const apiUrlMap = list.reduce((acc, item) => {
+    acc[item.apiName] = item.url
+    return acc
+  }, {})
+  const interfaceCodeMap = list.reduce((acc, item) => {
+    acc[item.apiName] = item.interfaceCode
+    return acc
+  }, {})
+  const interfaceMethodMap = list.reduce((acc, item) => {
+    acc[item.apiName] = item.method || 'GET'
+    return acc
+  }, {})
+
+  return { apiOptions, apiUrlMap, interfaceCodeMap, interfaceMethodMap }
+}
+
+const DEFAULT_FORM = {}
+
+function buildParamsFromForm(queryForm = {}) {
+  return Object.keys(queryForm).map((key) => ({
+    name: key,
+    value: queryForm[key],
+    type: getValueType(queryForm[key])
+  }))
+}
+
+function normalizeQueryConditions(data = {}) {
+  const queryConditions = (data.queryConditions || []).map((item) => ({
+    fieldName: item.fieldName,
+    chineseName: item.chineseName || item.fieldName,
+    fieldType: item.fieldType || 'String',
+    inputType: item.inputType || 'text',
+    placeholder: item.placeholder || '',
+    required: !!item.required,
+    defaultValue: item.defaultValue ?? '',
+    dateFormat: item.dateFormat || ''
+  }))
+
+  const pageConditions = (data.pageConditions || []).map((item) => ({
+    fieldName: item.fieldName,
+    chineseName: item.chineseName || item.fieldName,
+    fieldType: item.fieldType || 'Integer',
+    inputType: 'number',
+    placeholder: item.description || '',
+    required: false,
+    defaultValue: item.defaultValue ?? '',
+    dateFormat: ''
+  }))
+
+  return queryConditions.concat(pageConditions)
+}
+
+function buildFormFromConditions(conditions = [], oldForm = {}) {
+  return conditions.reduce((acc, item) => {
+    const hasOld = Object.prototype.hasOwnProperty.call(oldForm, item.fieldName)
+    if (hasOld) {
+      const oldValue = oldForm[item.fieldName]
+      if (item.inputType === 'date' && isEmptyValue(oldValue)) {
+        acc[item.fieldName] = formatToday(item.dateFormat)
+      } else {
+        acc[item.fieldName] = oldValue
+      }
+      return acc
+    }
+
+    const defaultValue = item.defaultValue
+    if (item.inputType === 'date') {
+      acc[item.fieldName] = formatToday(item.dateFormat)
+    } else if (defaultValue === null || defaultValue === undefined || defaultValue === '') {
+      acc[item.fieldName] = item.fieldType === 'Integer' || item.fieldType === 'Long' ? '' : ''
+    } else if (item.fieldType === 'Integer' || item.fieldType === 'Long') {
+      const n = Number(defaultValue)
+      acc[item.fieldName] = Number.isNaN(n) ? defaultValue : n
+    } else {
+      acc[item.fieldName] = defaultValue
+    }
+    return acc
+  }, {})
+}
+
+function isEmptyValue(value) {
+  return value === '' || value === null || value === undefined
+}
+
+function formatToday(dateFormat) {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  if (dateFormat === 'yyyy-MM-dd') return `${year}-${month}-${day}`
+  return `${year}${month}${day}`
+}
 
 function defaultState() {
-  const params = parseJsonToParams(DEFAULT_JSON)
+  const params = buildParamsFromForm(DEFAULT_FORM)
+  const interfaceState = buildInterfaceState(FALLBACK_INTERFACES)
   return {
     apiName: '',
-    apiOptions: ['获取页面查询条件接口', '获取接口出参字段接口', '查询分红列表（Mock）', '查询嵌套交易（Mock）', '查询超多字段交易（Mock）', '查询深层嵌套交易（Mock）'],
-    apiUrlMap: {
-      '获取页面查询条件接口': 'mock://query-conditions',
-      '获取接口出参字段接口': 'mock://field-meta',
-      '查询分红列表（Mock）': 'mock://dividend-list',
-      '查询嵌套交易（Mock）': 'mock://nested-trade',
-      '查询超多字段交易（Mock）': 'mock://large-fields',
-      '查询深层嵌套交易（Mock）': 'mock://deep-nested'
-    },
-    url: 'mock://dividend-list',
+    apiOptions: interfaceState.apiOptions,
+    apiUrlMap: interfaceState.apiUrlMap,
+    interfaceCodeMap: interfaceState.interfaceCodeMap,
+    interfaceMethodMap: interfaceState.interfaceMethodMap,
+    interfaceListApiUrl: 'mock://interface-list',
+    url: '',
     method: 'GET',
     contentType: 'application/json',
-    jsonText: DEFAULT_JSON,
+    jsonText: '',
+    queryConditionApiUrl: 'mock://query-conditions',
+    queryConditions: [],
+    queryForm: DEFAULT_FORM,
     params,
     responseData: null,
     responseTable: {
@@ -71,8 +167,21 @@ export default {
     SET_METHOD(state, value) {
       state.method = value
     },
+    SET_INTERFACE_OPTIONS(state, list) {
+      const next = buildInterfaceState(list)
+      state.apiOptions = next.apiOptions
+      state.apiUrlMap = next.apiUrlMap
+      state.interfaceCodeMap = next.interfaceCodeMap
+      state.interfaceMethodMap = next.interfaceMethodMap
+    },
     SET_JSON_TEXT(state, value) {
       state.jsonText = value
+    },
+    SET_QUERY_CONDITIONS(state, value) {
+      state.queryConditions = value
+    },
+    SET_QUERY_FORM(state, value) {
+      state.queryForm = value
     },
     SET_PARAMS(state, params) {
       state.params = params
@@ -109,23 +218,116 @@ export default {
       }
     },
     RESET_FORM(state) {
-      const reset = defaultState()
-      Object.keys(reset).forEach((key) => {
-        state[key] = reset[key]
-      })
+      state.apiName = ''
+      state.url = ''
+      state.method = 'GET'
+      state.jsonText = ''
+      state.queryConditions = []
+      state.queryForm = {}
+      state.params = []
+      state.responseData = null
+      state.responseTable = {
+        list: [],
+        total: 0,
+        page: 1,
+        pageSize: state.pagination.pageSize || 10
+      }
+      state.responseRawJson = ''
+      state.loading = false
+      state.error = ''
+      state.statusCode = null
+      state.responseTime = 0
+      state.activeResultMode = 'table'
+      state.tradeName = 'query_ta_dividend'
+      state.pagination = {
+        page: 1,
+        pageSize: state.pagination.pageSize || 10,
+        total: 0
+      }
     }
   },
   actions: {
-    parseJsonParams({ state, commit }) {
+    async fetchInterfaceList({ state, commit, dispatch }) {
       try {
-        const parsed = parseJsonToParams(state.jsonText)
-        commit('SET_PARAMS', parsed)
+        let data
+        if ((state.interfaceListApiUrl || '').startsWith('mock://')) {
+          data = getMockResponse(state.interfaceListApiUrl, 'GET', {})
+        } else {
+          const res = await request.get(state.interfaceListApiUrl)
+          data = res.data
+        }
+
+        const list = data?.data?.list || data?.list || []
+        if (!Array.isArray(list) || !list.length) {
+          commit('SET_INTERFACE_OPTIONS', FALLBACK_INTERFACES)
+          const firstFallback = FALLBACK_INTERFACES[0]
+          if (firstFallback) {
+            commit('SET_API_NAME', firstFallback.apiName)
+            commit('SET_URL', firstFallback.url)
+            commit('SET_METHOD', firstFallback.method || 'GET')
+            await dispatch('fetchQueryConditions', firstFallback.apiName)
+          }
+          return { ok: false, message: '接口列表为空，已使用默认列表' }
+        }
+
+        commit('SET_INTERFACE_OPTIONS', list)
+        const selectedName = list.find((item) => item.apiName === state.apiName)?.apiName || list[0]?.apiName
+        const selected = list.find((item) => item.apiName === selectedName)
+        if (selected && selected.apiName) {
+          commit('SET_API_NAME', selected.apiName)
+          commit('SET_URL', selected.url || '')
+          commit('SET_METHOD', selected.method || 'GET')
+          await dispatch('fetchQueryConditions', selected.apiName)
+        }
         return { ok: true }
       } catch (err) {
-        return { ok: false, message: 'JSON 格式不正确，请检查后重试' }
+        commit('SET_INTERFACE_OPTIONS', FALLBACK_INTERFACES)
+        const firstFallback = FALLBACK_INTERFACES[0]
+        if (firstFallback) {
+          commit('SET_API_NAME', firstFallback.apiName)
+          commit('SET_URL', firstFallback.url)
+          commit('SET_METHOD', firstFallback.method || 'GET')
+          await dispatch('fetchQueryConditions', firstFallback.apiName)
+        }
+        return { ok: false, message: '查询接口列表失败，已使用默认列表' }
       }
     },
-    async sendRequest({ state, commit, dispatch }) {
+    async fetchQueryConditions({ state, commit }, apiName) {
+      const interfaceCode = state.interfaceCodeMap?.[apiName] || 'query_ta_dividend'
+      try {
+        const payload = { params: { interface_code: interfaceCode } }
+        let data
+        if ((state.queryConditionApiUrl || '').startsWith('mock://')) {
+          data = getMockResponse(state.queryConditionApiUrl, 'POST', payload.params)
+        } else {
+          const res = await request.post(state.queryConditionApiUrl, payload, {
+            headers: { 'Content-Type': 'application/json' }
+          })
+          data = res.data
+        }
+
+        const conditions = normalizeQueryConditions(data?.data || {})
+        const form = buildFormFromConditions(conditions, state.queryForm)
+        commit('SET_QUERY_CONDITIONS', conditions)
+        commit('SET_QUERY_FORM', form)
+        commit('SET_PARAMS', buildParamsFromForm(form))
+        commit('SET_JSON_TEXT', JSON.stringify(form, null, 2))
+        return { ok: true }
+      } catch (err) {
+        return { ok: false, message: '查询接口入参模板失败，请稍后重试' }
+      }
+    },
+    updateQueryField({ state, commit }, { fieldName, value }) {
+      const nextForm = {
+        ...state.queryForm,
+        [fieldName]: value
+      }
+      commit('SET_QUERY_FORM', nextForm)
+      commit('SET_PARAMS', buildParamsFromForm(nextForm))
+      commit('SET_JSON_TEXT', JSON.stringify(nextForm, null, 2))
+      return { ok: true }
+    },
+    async sendRequest({ state, commit }) {
       const requestUrl = (state.url || '').trim()
       if (!requestUrl) {
         return { ok: false, message: 'URL 不能为空' }
@@ -137,12 +339,9 @@ export default {
         return { ok: false, message: '请求方式必须存在' }
       }
 
-      const parseResult = await dispatch('parseJsonParams')
-      if (!parseResult.ok) return parseResult
-
-      const hasEmptyName = state.params.some((item) => !item.name || !String(item.name).trim())
-      if (hasEmptyName) {
-        return { ok: false, message: '参数名不能为空，请检查后重试' }
+      const missingRequired = state.queryConditions.find((item) => item.required && isEmptyValue(state.queryForm[item.fieldName]))
+      if (missingRequired) {
+        return { ok: false, message: `${missingRequired.chineseName || missingRequired.fieldName}不能为空` }
       }
 
       const requestParams = buildRequestParams(state.params)
