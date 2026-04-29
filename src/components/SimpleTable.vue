@@ -1,55 +1,59 @@
 <template>
   <div>
-    <el-table :data="list" border stripe style="width: 100%" empty-text="暂无数据">
-      <el-table-column
-        v-for="col in columns"
-        :key="col.prop"
-        :prop="col.prop"
-        :label="col.label"
-        min-width="140"
-        show-overflow-tooltip
-      >
-        <template slot-scope="scope">
-          <span v-if="col.prop === 'status'" :class="statusClass(scope.row[col.prop])">
-            {{ formatStatus(scope.row[col.prop]) }}
-          </span>
-          <el-button
-            v-else-if="isNestedValue(scope.row[col.prop])"
-            type="text"
-            size="mini"
-            @click="openDetail(getDetailTitle(col, scope.row), scope.row[col.prop])"
-          >
-            查看详情
-          </el-button>
-          <span v-else>{{ showValue(scope.row[col.prop]) }}</span>
-        </template>
-      </el-table-column>
-    </el-table>
+    <div class="table-scroll">
+      <el-table :data="list" border stripe style="width: 100%" empty-text="暂无数据">
+        <el-table-column
+          v-for="col in columns"
+          :key="col.prop"
+          :prop="col.prop"
+          :label="col.label"
+          min-width="140"
+          show-overflow-tooltip
+        >
+          <template slot-scope="scope">
+            <span v-if="col.prop === 'status'" :class="statusClass(scope.row[col.prop])">
+              {{ formatStatus(scope.row[col.prop]) }}
+            </span>
+            <el-button
+              v-else-if="isNestedValue(scope.row[col.prop])"
+              type="text"
+              size="mini"
+              @click="openDetail(getDetailTitle(col, scope.row), scope.row[col.prop])"
+            >
+              查看详情
+            </el-button>
+            <span v-else>{{ showValue(scope.row[col.prop]) }}</span>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
 
-    <el-dialog :title="currentDetail.title" :visible.sync="detailVisible" width="760px" @close="closeAll">
+    <el-dialog :title="currentDetail.title" :visible.sync="detailVisible" :width="dialogWidth" @close="closeAll">
       <template v-if="isNestedValue(currentDetail.value)">
-        <el-table :data="pagedDetailRows" border stripe empty-text="暂无数据">
-          <el-table-column
-            v-for="col in detailColumns"
-            :key="col.prop"
-            :prop="col.prop"
-            :label="col.label"
-            min-width="140"
-            show-overflow-tooltip
-          >
-            <template slot-scope="scope">
-              <el-button
-                v-if="isNestedValue(scope.row[col.prop])"
-                type="text"
-                size="mini"
-                @click="openDetail(getDetailTitle(col, scope.row), scope.row[col.prop])"
-              >
-                查看详情
-              </el-button>
-              <span v-else>{{ showValue(scope.row[col.prop]) }}</span>
-            </template>
-          </el-table-column>
-        </el-table>
+        <div class="table-scroll">
+          <el-table :data="pagedDetailRows" border stripe empty-text="暂无数据">
+            <el-table-column
+              v-for="col in detailColumns"
+              :key="col.prop"
+              :prop="col.prop"
+              :label="col.label"
+              min-width="140"
+              show-overflow-tooltip
+            >
+              <template slot-scope="scope">
+                <el-button
+                  v-if="isNestedValue(scope.row[col.prop])"
+                  type="text"
+                  size="mini"
+                  @click="openDetail(getDetailTitle(col, scope.row), scope.row[col.prop])"
+                >
+                  查看详情
+                </el-button>
+                <span v-else>{{ showValue(scope.row[col.prop]) }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
         <div v-if="detailRows.length > currentDetail.pagination.pageSize" class="detail-pagination">
           <el-pagination
             background
@@ -96,7 +100,8 @@ export default {
   data() {
     return {
       detailVisible: false,
-      detailStack: []
+      detailStack: [],
+      viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1024
     }
   },
   computed: {
@@ -115,6 +120,19 @@ export default {
     pagedDetailRows() {
       const start = (this.currentDetail.pagination.page - 1) * this.currentDetail.pagination.pageSize
       return this.detailRows.slice(start, start + this.currentDetail.pagination.pageSize)
+    },
+    dialogWidth() {
+      return this.viewportWidth <= 768 ? '95%' : '760px'
+    }
+  },
+  mounted() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', this.handleResize, { passive: true })
+    }
+  },
+  beforeDestroy() {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('resize', this.handleResize)
     }
   },
   methods: {
@@ -198,6 +216,9 @@ export default {
         top.pagination = { page: 1, pageSize }
       }
     },
+    handleResize() {
+      this.viewportWidth = window.innerWidth
+    },
     statusClass(value) {
       if (value === 1 || value === '1') return 'status-tag status-enabled'
       if (value === 0 || value === '0') return 'status-tag status-disabled'
@@ -247,5 +268,16 @@ export default {
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .detail-pagination {
+    justify-content: center;
+  }
 }
 </style>

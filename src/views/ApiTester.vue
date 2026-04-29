@@ -173,4 +173,22 @@ export default {
 .page-wrap :deep(.el-textarea__inner) {
   border-radius: 8px;
 }
+
+@media (max-width: 768px) {
+  .page-wrap {
+    padding: 12px;
+  }
+
+  .header h1 {
+    font-size: 30px;
+  }
+
+  .header p {
+    font-size: 16px;
+  }
+
+  .page-wrap :deep(.el-card__body) {
+    padding: 14px;
+  }
+}
 </style>

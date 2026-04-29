@@ -1,8 +1,9 @@
 <template>
   <div class="pagination-wrap">
     <el-pagination
-      background
-      layout="total, sizes, prev, pager, next"
+      :background="!isMobile"
+      :small="isMobile"
+      :layout="paginationLayout"
       :current-page="pagination.page"
       :page-sizes="[10, 20, 50, 100]"
       :page-size="pagination.pageSize"
@@ -21,6 +22,34 @@ export default {
       type: Object,
       required: true
     }
+  },
+  data() {
+    return {
+      viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1024
+    }
+  },
+  computed: {
+    isMobile() {
+      return this.viewportWidth <= 768
+    },
+    paginationLayout() {
+      return this.isMobile ? 'total, prev, pager, next' : 'total, sizes, prev, pager, next'
+    }
+  },
+  mounted() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', this.handleResize, { passive: true })
+    }
+  },
+  beforeDestroy() {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('resize', this.handleResize)
+    }
+  },
+  methods: {
+    handleResize() {
+      this.viewportWidth = window.innerWidth
+    }
   }
 }
 </script>
@@ -30,5 +59,11 @@ export default {
   padding-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .pagination-wrap {
+    justify-content: center;
+  }
 }
 </style>

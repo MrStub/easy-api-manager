@@ -74,7 +74,8 @@ export default {
   },
   data() {
     return {
-      localMode: this.activeResultMode
+      localMode: this.activeResultMode,
+      viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1024
     }
   },
   computed: {
@@ -92,18 +93,87 @@ export default {
       this.localMode = next
     }
   },
+  mounted() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', this.handleResize, { passive: true })
+    }
+  },
+  beforeDestroy() {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('resize', this.handleResize)
+    }
+  },
   methods: {
+    handleResize() {
+      this.viewportWidth = window.innerWidth
+    },
+    isWechatBrowser() {
+      if (typeof navigator === 'undefined') return false
+      return /micromessenger/i.test(navigator.userAgent || '')
+    },
+    isMobileBrowser() {
+      if (typeof navigator === 'undefined') return false
+      return /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || '')
+    },
     onModeChange() {
       this.$emit('update:activeResultMode', this.localMode)
+    },
+    fallbackCopyText(text) {
+      const area = document.createElement('textarea')
+      area.value = text
+      area.style.position = 'fixed'
+      area.style.opacity = '0'
+      area.style.left = '-9999px'
+      document.body.appendChild(area)
+      area.focus()
+      area.select()
+      const ok = document.execCommand('copy')
+      document.body.removeChild(area)
+      return ok
     },
     async copyJson() {
       if (!this.formattedJson) return
       try {
-        await navigator.clipboard.writeText(this.formattedJson)
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(this.formattedJson)
+        } else {
+          const copied = this.fallbackCopyText(this.formattedJson)
+          if (!copied) throw new Error('copy failed')
+        }
         this.$message.success('JSON 已复制')
       } catch (e) {
         this.$message.error('复制失败，请手动复制')
       }
+    },
+    async downloadBlob(blob, fileName) {
+      const nav = window.navigator
+      if (nav.msSaveOrOpenBlob) {
+        nav.msSaveOrOpenBlob(blob, fileName)
+        return true
+      }
+
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.style.display = 'none'
+      link.href = url
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      const inWechat = this.isWechatBrowser()
+      if (inWechat || this.isMobileBrowser()) {
+        // 微信/iOS 的 download 支持并不稳定，补充 open 降级
+        setTimeout(() => {
+          window.open(url, '_blank')
+        }, 50)
+      }
+
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url)
+      }, 2000)
+
+      return true
     },
     normalizeExportValue(value) {
       if (value === null || value === undefined) return ''
@@ -278,8 +348,17 @@ export default {
 
       const rootTitle = this.tradeName || '返回结果'
       appendSheetForValue(rootTitle, this.exportRows)
-      XLSX.writeFile(wb, `api_result_${Date.now()}.xlsx`)
-      this.$message.success('Excel 导出成功')
+      const fileName = `api_result_${Date.now()}.xlsx`
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+      const blob = new Blob([wbout], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      })
+      await this.downloadBlob(blob, fileName)
+      if (this.isWechatBrowser()) {
+        this.$message.success('已触发下载；若微信内未自动下载，请右上角选择在浏览器打开后下载')
+      } else {
+        this.$message.success('Excel 导出成功')
+      }
     }
   }
 }
@@ -290,6 +369,8 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .card-title {
@@ -301,6 +382,7 @@ export default {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .ok {
@@ -333,5 +415,15 @@ export default {
   white-space: pre-wrap;
   word-break: break-word;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+@media (max-width: 768px) {
+  .card-title {
+    font-size: 20px;
+  }
+
+  .table-tools {
+    justify-content: flex-start;
+  }
 }
 </style>

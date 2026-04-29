@@ -3,7 +3,7 @@
     <div slot="header" class="card-title">接口信息</div>
     <el-form label-position="top" class="api-form">
       <el-row :gutter="16">
-        <el-col :span="8">
+        <el-col :xs="24" :sm="24" :md="8" :lg="8">
           <el-form-item label="接口名称">
             <el-select
               filterable
@@ -16,7 +16,7 @@
           </el-form-item>
         </el-col>
 
-        <el-col :span="10">
+        <el-col :xs="24" :sm="24" :md="10" :lg="10">
           <el-form-item label="请求地址 URL">
             <el-input
               :value="url"
@@ -26,7 +26,7 @@
           </el-form-item>
         </el-col>
 
-        <el-col :span="6">
+        <el-col :xs="24" :sm="24" :md="6" :lg="6">
           <el-form-item label="请求方式">
             <el-select :value="method" @change="$emit('update:method', $event)">
               <el-option label="GET" value="GET" />
@@ -60,5 +60,11 @@ export default {
 .card-title {
   font-size: 24px;
   font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .card-title {
+    font-size: 20px;
+  }
 }
 </style>

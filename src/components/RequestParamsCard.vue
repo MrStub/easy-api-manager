@@ -3,7 +3,7 @@
     <div slot="header" class="card-title">请求参数</div>
 
     <el-row :gutter="16">
-      <el-col :span="12">
+      <el-col :xs="24" :sm="24" :md="12" :lg="12">
         <div class="sub-title">参数输入</div>
         <el-form label-position="top" size="small">
           <el-form-item
@@ -32,9 +32,9 @@
         </el-form>
         <div class="hint" v-if="!queryConditions.length">请先在上方选择接口，系统会自动加载该接口入参模板。</div>
       </el-col>
-      <el-col :span="12">
+      <el-col :xs="24" :sm="24" :md="12" :lg="12">
         <div class="sub-title">参数预览（{{ params.length }} 个）</div>
-        <el-table :data="params" border empty-text="暂无参数">
+        <el-table :data="params" border empty-text="暂无参数" style="width: 100%">
           <el-table-column prop="name" label="参数名" min-width="120" />
           <el-table-column prop="value" label="值" min-width="140">
             <template slot-scope="scope">{{ formatValue(scope.row.value) }}</template>
@@ -125,5 +125,24 @@ export default {
 
 .actions {
   margin-top: 16px;
+}
+
+@media (max-width: 768px) {
+  .card-title {
+    font-size: 20px;
+  }
+
+  .sub-title {
+    font-size: 16px;
+  }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .actions .el-button {
+    flex: 1;
+  }
 }
 </style>
