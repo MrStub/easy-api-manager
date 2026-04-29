@@ -72,7 +72,7 @@ function buildFormFromConditions(conditions = [], oldForm = {}) {
     const hasOld = Object.prototype.hasOwnProperty.call(oldForm, item.fieldName)
     if (hasOld) {
       const oldValue = oldForm[item.fieldName]
-      if (item.inputType === 'date' && isEmptyValue(oldValue)) {
+      if (item.inputType === 'date' && isBlankValue(oldValue)) {
         acc[item.fieldName] = formatToday(item.dateFormat)
       } else {
         acc[item.fieldName] = oldValue
@@ -84,7 +84,7 @@ function buildFormFromConditions(conditions = [], oldForm = {}) {
     if (item.inputType === 'date') {
       acc[item.fieldName] = formatToday(item.dateFormat)
     } else if (defaultValue === null || defaultValue === undefined || defaultValue === '') {
-      acc[item.fieldName] = item.fieldType === 'Integer' || item.fieldType === 'Long' ? '' : ''
+      acc[item.fieldName] = ''
     } else if (item.fieldType === 'Integer' || item.fieldType === 'Long') {
       const n = Number(defaultValue)
       acc[item.fieldName] = Number.isNaN(n) ? defaultValue : n
@@ -93,10 +93,6 @@ function buildFormFromConditions(conditions = [], oldForm = {}) {
     }
     return acc
   }, {})
-}
-
-function isEmptyValue(value) {
-  return value === '' || value === null || value === undefined
 }
 
 function isBlankValue(value) {
@@ -165,6 +161,43 @@ function getTradeName(url, params, preferredTradeName = '') {
   if ((url || '').includes('large-fields') || (url || '').includes('large_fields')) return 'large_fields'
   if ((url || '').includes('deep-nested') || (url || '').includes('deep_nested')) return 'deep_nested'
   return 'query_ta_dividend'
+}
+
+function validateRequestState(state, requestUrl) {
+  if (!requestUrl) return 'URL 不能为空'
+  if (!state.method) return '请求方式必须存在'
+
+  const missingRequired = state.queryConditions.find((item) => item.required && isBlankValue(state.queryForm[item.fieldName]))
+  if (missingRequired) {
+    return `${missingRequired.chineseName || missingRequired.fieldName}不能为空`
+  }
+  return ''
+}
+
+function buildAxiosConfig(state, requestUrl, requestParams) {
+  const config = {
+    url: requestUrl,
+    method: state.method,
+    headers: {
+      'Content-Type': state.contentType
+    }
+  }
+
+  if (state.method === 'GET') {
+    config.params = requestParams
+  } else {
+    config.data = requestParams
+  }
+  return config
+}
+
+async function requestApi(state, requestUrl, requestParams) {
+  const mockData = getMockResponse(requestUrl, state.method, requestParams)
+  if (mockData) {
+    await new Promise((resolve) => setTimeout(resolve, 120))
+    return { status: 200, data: mockData }
+  }
+  return request(buildAxiosConfig(state, requestUrl, requestParams))
 }
 
 export default {
@@ -342,19 +375,12 @@ export default {
     },
     async sendRequest({ state, commit }) {
       const requestUrl = (state.url || '').trim()
-      if (!requestUrl) {
-        return { ok: false, message: 'URL 不能为空' }
-      }
       if (requestUrl !== state.url) {
         commit('SET_URL', requestUrl)
       }
-      if (!state.method) {
-        return { ok: false, message: '请求方式必须存在' }
-      }
-
-      const missingRequired = state.queryConditions.find((item) => item.required && isBlankValue(state.queryForm[item.fieldName]))
-      if (missingRequired) {
-        return { ok: false, message: `${missingRequired.chineseName || missingRequired.fieldName}不能为空` }
+      const validationMessage = validateRequestState(state, requestUrl)
+      if (validationMessage) {
+        return { ok: false, message: validationMessage }
       }
 
       const requestParams = buildRequestParams(state.params)
@@ -376,27 +402,7 @@ export default {
       })
 
       try {
-        const mockData = getMockResponse(requestUrl, state.method, requestParams)
-        let res
-        if (mockData) {
-          await new Promise((resolve) => setTimeout(resolve, 120))
-          res = { status: 200, data: mockData }
-        } else {
-          const config = {
-            url: requestUrl,
-            method: state.method,
-            headers: {
-              'Content-Type': state.contentType
-            }
-          }
-
-          if (state.method === 'GET') {
-            config.params = requestParams
-          } else {
-            config.data = requestParams
-          }
-          res = await request(config)
-        }
+        const res = await requestApi(state, requestUrl, requestParams)
         const end = Date.now()
         const table = extractTableData(res.data, tradeName)
 
@@ -417,7 +423,7 @@ export default {
         commit('SET_RESPONSE_DATA', err.response?.data || null)
         commit('SET_RESPONSE_TABLE', { list: [], total: 0, page: 1, pageSize: state.pagination.pageSize })
         commit('SET_PAGINATION', { total: 0 })
-        commit('SET_ERROR', err.message || '请求失败')
+        commit('SET_ERROR', err.normalizedMessage || err.message || '请求失败')
         return { ok: false }
       } finally {
         commit('SET_LOADING', false)

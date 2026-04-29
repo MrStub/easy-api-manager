@@ -15,40 +15,20 @@
 </template>
 
 <script>
+import viewportMixin from '../mixins/viewport'
+
 export default {
   name: 'PaginationBar',
+  mixins: [viewportMixin],
   props: {
     pagination: {
       type: Object,
       required: true
     }
   },
-  data() {
-    return {
-      viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1024
-    }
-  },
   computed: {
-    isMobile() {
-      return this.viewportWidth <= 768
-    },
     paginationLayout() {
       return this.isMobile ? 'total, prev, pager, next' : 'total, sizes, prev, pager, next'
-    }
-  },
-  mounted() {
-    if (typeof window !== 'undefined') {
-      window.addEventListener('resize', this.handleResize, { passive: true })
-    }
-  },
-  beforeDestroy() {
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('resize', this.handleResize)
-    }
-  },
-  methods: {
-    handleResize() {
-      this.viewportWidth = window.innerWidth
     }
   }
 }

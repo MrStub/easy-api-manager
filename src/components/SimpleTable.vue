@@ -79,10 +79,12 @@
 
 <script>
 import { formatStatusValue, generateColumns } from '../utils/responseParser'
-import { resolveFieldLabel } from '../utils/fieldMap'
+import { isNestedValue as isNestedDataValue, toListRows, toParamRows } from '../utils/nestedData'
+import viewportMixin from '../mixins/viewport'
 
 export default {
   name: 'SimpleTable',
+  mixins: [viewportMixin],
   props: {
     list: {
       type: Array,
@@ -100,8 +102,7 @@ export default {
   data() {
     return {
       detailVisible: false,
-      detailStack: [],
-      viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1024
+      detailStack: []
     }
   },
   computed: {
@@ -111,8 +112,8 @@ export default {
     },
     detailRows() {
       const value = this.currentDetail.value
-      if (Array.isArray(value)) return this.toListRows(value)
-      return this.toParamRows(value)
+      if (Array.isArray(value)) return toListRows(value)
+      return toParamRows(value, this.tradeName)
     },
     detailColumns() {
       return generateColumns(this.detailRows, this.tradeName)
@@ -122,17 +123,7 @@ export default {
       return this.detailRows.slice(start, start + this.currentDetail.pagination.pageSize)
     },
     dialogWidth() {
-      return this.viewportWidth <= 768 ? '95%' : '760px'
-    }
-  },
-  mounted() {
-    if (typeof window !== 'undefined') {
-      window.addEventListener('resize', this.handleResize, { passive: true })
-    }
-  },
-  beforeDestroy() {
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('resize', this.handleResize)
+      return this.isMobile ? '95%' : '760px'
     }
   },
   methods: {
@@ -146,41 +137,7 @@ export default {
       return value
     },
     isNestedValue(value) {
-      return value && typeof value === 'object'
-    },
-    toParamRows(value, parentPath = '') {
-      if (value && typeof value === 'object' && !Array.isArray(value)) {
-        return Object.keys(value).map((key) => {
-          const name = parentPath ? `${parentPath}.${key}` : key
-          return this.toParamRow(name, key, value[key])
-        })
-      }
-
-      return [
-        {
-          paramName: parentPath || 'value',
-          paramLabel: resolveFieldLabel(this.tradeName, 'value', '--'),
-          value
-        }
-      ]
-    },
-    toListRows(value) {
-      if (Array.isArray(value)) {
-        return value.map((item) => {
-          if (item && typeof item === 'object' && !Array.isArray(item)) {
-            return item
-          }
-          return { value: item }
-        })
-      }
-      return []
-    },
-    toParamRow(paramName, fieldName, value) {
-      return {
-        paramName,
-        paramLabel: resolveFieldLabel(this.tradeName, fieldName, '--'),
-        value
-      }
+      return isNestedDataValue(value)
     },
     fullValue(value) {
       return JSON.stringify(value, null, 2)
@@ -215,9 +172,6 @@ export default {
       if (top) {
         top.pagination = { page: 1, pageSize }
       }
-    },
-    handleResize() {
-      this.viewportWidth = window.innerWidth
     },
     statusClass(value) {
       if (value === 1 || value === '1') return 'status-tag status-enabled'
