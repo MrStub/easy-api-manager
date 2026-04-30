@@ -127,6 +127,7 @@ function appendSheetForValue(XLSX, context, title, value, fixedName = '') {
   const pendingLinks = []
   const childTasks = []
 
+  // 当前 sheet 先落一层数据，再递归为嵌套对象/数组生成子 sheet。
   rows.forEach((row, rowIdx) => {
     const outRow = []
     cols.forEach((col, colIdx) => {

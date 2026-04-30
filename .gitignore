@@ -1,2 +1,7 @@
 node_modules
 dist
+*.txt
+不分页请求.json
+分页请求.json
+接口返回报文.txt
+.DS_Store

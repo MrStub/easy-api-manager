@@ -8,11 +8,7 @@
     <ApiInfoCard
       :api-name="apiName"
       :api-options="apiOptions"
-      :url="url"
-      :method="method"
       @update:apiName="onApiNameChange"
-      @update:url="setUrl"
-      @update:method="setMethod"
     />
 
     <RequestParamsCard
@@ -62,8 +58,6 @@ export default {
       'apiName',
       'apiOptions',
       'apiUrlMap',
-      'url',
-      'method',
       'jsonText',
       'queryConditions',
       'queryForm',
@@ -98,8 +92,7 @@ export default {
       this.setApiName(name)
       const url = this.apiUrlMap[name]
       if (url) this.setUrl(url)
-      const method = this.$store.state.apiTester.interfaceMethodMap?.[name]
-      if (method) this.setMethod(method)
+      this.setMethod('POST')
       const result = await this.fetchQueryConditionsAction(name)
       if (result && result.message) {
         this.$message.warning(result.message)

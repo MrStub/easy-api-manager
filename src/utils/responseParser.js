@@ -1,11 +1,17 @@
 import { resolveFieldLabel } from './fieldMap'
 
+const RESULT_PAGE_SIZE = 10
+
+function normalizeArrayRows(list = []) {
+  return list.map((item) => {
+    if (item && typeof item === 'object' && !Array.isArray(item)) return item
+    return { value: item }
+  })
+}
+
 function buildDataRows(data, tradeName) {
   if (Array.isArray(data)) {
-    return data.map((item) => {
-      if (item && typeof item === 'object' && !Array.isArray(item)) return item
-      return { value: item }
-    })
+    return normalizeArrayRows(data)
   }
 
   if (data && typeof data === 'object') {
@@ -27,15 +33,23 @@ function buildDataRows(data, tradeName) {
   ]
 }
 
-export function extractTableData(response, tradeName = 'query_ta_dividend') {
+function extractListCandidate(source) {
+  if (!source || typeof source !== 'object') return null
+  const candidates = [source.list, source.records, source.rows]
+  return candidates.find((item) => Array.isArray(item)) || null
+}
+
+export function extractTableData(response, tradeName = 'query_trade') {
   const safeRes = response || {}
   const data = Object.prototype.hasOwnProperty.call(safeRes, 'data') ? safeRes.data : safeRes
+  const listCandidate = extractListCandidate(data) || extractListCandidate(safeRes)
 
-  const list = buildDataRows(data, tradeName)
+  // 表格优先消费 data.list / data.records / data.rows，JSON 视图继续保留完整报文。
+  const list = listCandidate ? normalizeArrayRows(listCandidate) : buildDataRows(data, tradeName)
 
   const total = list.length
   const page = 1
-  const pageSize = 10
+  const pageSize = RESULT_PAGE_SIZE
 
   return {
     list,
@@ -45,7 +59,7 @@ export function extractTableData(response, tradeName = 'query_ta_dividend') {
   }
 }
 
-export function generateColumns(list = [], tradeName = 'query_ta_dividend') {
+export function generateColumns(list = [], tradeName = 'query_trade') {
   if (!Array.isArray(list) || list.length === 0) return []
   if (list.some((row) => Object.prototype.hasOwnProperty.call(row || {}, 'paramName'))) {
     return [

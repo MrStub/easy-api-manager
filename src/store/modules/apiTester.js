@@ -1,130 +1,30 @@
 import request from '../../api/request'
-import { buildRequestParams, getValueType } from '../../utils/json'
+import { buildRequestParams } from '../../utils/json'
 import { extractTableData } from '../../utils/responseParser'
 import { getMockResponse } from '../../mock/mockResponses'
-
-const FALLBACK_INTERFACES = [
-  { apiName: '查询分红列表（Mock）', url: 'mock://dividend-list', interfaceCode: 'query_ta_dividend', method: 'GET' },
-  { apiName: '查询嵌套交易（Mock）', url: 'mock://nested-trade', interfaceCode: 'nested_trade', method: 'GET' },
-  { apiName: '查询超多字段交易（Mock）', url: 'mock://large-fields', interfaceCode: 'large_fields', method: 'GET' },
-  { apiName: '查询深层嵌套交易（Mock）', url: 'mock://deep-nested', interfaceCode: 'deep_nested', method: 'GET' }
-]
-
-function buildInterfaceState(list = []) {
-  const apiOptions = list.map((item) => item.apiName)
-  const apiUrlMap = list.reduce((acc, item) => {
-    acc[item.apiName] = item.url
-    return acc
-  }, {})
-  const interfaceCodeMap = list.reduce((acc, item) => {
-    acc[item.apiName] = item.interfaceCode
-    return acc
-  }, {})
-  const interfaceMethodMap = list.reduce((acc, item) => {
-    acc[item.apiName] = item.method || 'GET'
-    return acc
-  }, {})
-
-  return { apiOptions, apiUrlMap, interfaceCodeMap, interfaceMethodMap }
-}
+import { DEFAULT_TRADE_NAME, MOCK_INTERFACE_LIST } from '../../mock/mockInterfaces'
+import {
+  buildFormFromConditions,
+  buildInterfaceState,
+  buildParamsFromForm,
+  normalizeQueryConditions,
+  validateRequestState
+} from './apiTester.helpers'
 
 const DEFAULT_FORM = {}
-
-function buildParamsFromForm(queryForm = {}) {
-  return Object.keys(queryForm).map((key) => {
-    const value = normalizeRequestValue(queryForm[key])
-    return {
-      name: key,
-      value,
-      type: getValueType(value)
-    }
-  })
-}
-
-function normalizeQueryConditions(data = {}) {
-  const queryConditions = (data.queryConditions || []).map((item) => ({
-    fieldName: item.fieldName,
-    chineseName: item.chineseName || item.fieldName,
-    fieldType: item.fieldType || 'String',
-    inputType: item.inputType || 'text',
-    placeholder: item.placeholder || '',
-    required: !!item.required,
-    defaultValue: item.defaultValue ?? '',
-    dateFormat: item.dateFormat || ''
-  }))
-
-  const pageConditions = (data.pageConditions || []).map((item) => ({
-    fieldName: item.fieldName,
-    chineseName: item.chineseName || item.fieldName,
-    fieldType: item.fieldType || 'Integer',
-    inputType: 'number',
-    placeholder: item.description || '',
-    required: false,
-    defaultValue: item.defaultValue ?? '',
-    dateFormat: ''
-  }))
-
-  return queryConditions.concat(pageConditions)
-}
-
-function buildFormFromConditions(conditions = [], oldForm = {}) {
-  return conditions.reduce((acc, item) => {
-    const hasOld = Object.prototype.hasOwnProperty.call(oldForm, item.fieldName)
-    if (hasOld) {
-      const oldValue = oldForm[item.fieldName]
-      if (item.inputType === 'date' && isBlankValue(oldValue)) {
-        acc[item.fieldName] = formatToday(item.dateFormat)
-      } else {
-        acc[item.fieldName] = oldValue
-      }
-      return acc
-    }
-
-    const defaultValue = item.defaultValue
-    if (item.inputType === 'date') {
-      acc[item.fieldName] = formatToday(item.dateFormat)
-    } else if (defaultValue === null || defaultValue === undefined || defaultValue === '') {
-      acc[item.fieldName] = ''
-    } else if (item.fieldType === 'Integer' || item.fieldType === 'Long') {
-      const n = Number(defaultValue)
-      acc[item.fieldName] = Number.isNaN(n) ? defaultValue : n
-    } else {
-      acc[item.fieldName] = defaultValue
-    }
-    return acc
-  }, {})
-}
-
-function isBlankValue(value) {
-  return value === null || value === undefined || (typeof value === 'string' && value.trim() === '')
-}
-
-function normalizeRequestValue(value) {
-  if (typeof value === 'string') return value.trim()
-  return value
-}
-
-function formatToday(dateFormat) {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  if (dateFormat === 'yyyy-MM-dd') return `${year}-${month}-${day}`
-  return `${year}${month}${day}`
-}
+const RESULT_PAGE_SIZE = 10
 
 function defaultState() {
   const params = buildParamsFromForm(DEFAULT_FORM)
-  const interfaceState = buildInterfaceState(FALLBACK_INTERFACES)
+  const interfaceState = buildInterfaceState(MOCK_INTERFACE_LIST)
   return {
     apiName: '',
     apiOptions: interfaceState.apiOptions,
     apiUrlMap: interfaceState.apiUrlMap,
     interfaceCodeMap: interfaceState.interfaceCodeMap,
-    interfaceMethodMap: interfaceState.interfaceMethodMap,
     interfaceListApiUrl: 'mock://interface-list',
     url: '',
-    method: 'GET',
+    method: 'POST',
     contentType: 'application/json',
     jsonText: '',
     queryConditionApiUrl: 'mock://query-conditions',
@@ -136,7 +36,7 @@ function defaultState() {
       list: [],
       total: 0,
       page: 1,
-      pageSize: 10
+      pageSize: RESULT_PAGE_SIZE
     },
     responseRawJson: '',
     loading: false,
@@ -144,10 +44,10 @@ function defaultState() {
     statusCode: null,
     responseTime: 0,
     activeResultMode: 'table',
-    tradeName: 'query_ta_dividend',
+    tradeName: DEFAULT_TRADE_NAME,
     pagination: {
       page: 1,
-      pageSize: 10,
+      pageSize: RESULT_PAGE_SIZE,
       total: 0
     }
   }
@@ -156,22 +56,11 @@ function defaultState() {
 function getTradeName(url, params, preferredTradeName = '') {
   if (preferredTradeName) return preferredTradeName
   if (params.interface_code) return params.interface_code
-  if ((url || '').includes('query_ta_dividend') || (url || '').includes('dividend')) return 'query_ta_dividend'
+  if ((url || '').includes('sample-trade-detail') || (url || '').includes('query_trade')) return 'query_trade'
+  if ((url || '').includes('sample-subscribe-list') || (url || '').includes('query_subscribe_virtual')) return 'query_subscribe_virtual'
   if ((url || '').includes('nested-trade') || (url || '').includes('nested_trade')) return 'nested_trade'
-  if ((url || '').includes('large-fields') || (url || '').includes('large_fields')) return 'large_fields'
-  if ((url || '').includes('deep-nested') || (url || '').includes('deep_nested')) return 'deep_nested'
-  return 'query_ta_dividend'
-}
-
-function validateRequestState(state, requestUrl) {
-  if (!requestUrl) return 'URL 不能为空'
-  if (!state.method) return '请求方式必须存在'
-
-  const missingRequired = state.queryConditions.find((item) => item.required && isBlankValue(state.queryForm[item.fieldName]))
-  if (missingRequired) {
-    return `${missingRequired.chineseName || missingRequired.fieldName}不能为空`
-  }
-  return ''
+  if ((url || '').includes('long-list') || (url || '').includes('long_list_trade')) return 'long_list_trade'
+  return DEFAULT_TRADE_NAME
 }
 
 function buildAxiosConfig(state, requestUrl, requestParams) {
@@ -200,6 +89,14 @@ async function requestApi(state, requestUrl, requestParams) {
   return request(buildAxiosConfig(state, requestUrl, requestParams))
 }
 
+async function applySelectedInterface(commit, dispatch, item) {
+  if (!item) return
+  commit('SET_API_NAME', item.apiName)
+  commit('SET_URL', item.url || '')
+  commit('SET_METHOD', 'POST')
+  await dispatch('fetchQueryConditions', item.apiName)
+}
+
 export default {
   namespaced: true,
   state: defaultState,
@@ -218,7 +115,6 @@ export default {
       state.apiOptions = next.apiOptions
       state.apiUrlMap = next.apiUrlMap
       state.interfaceCodeMap = next.interfaceCodeMap
-      state.interfaceMethodMap = next.interfaceMethodMap
     },
     SET_JSON_TEXT(state, value) {
       state.jsonText = value
@@ -266,7 +162,7 @@ export default {
     RESET_FORM(state) {
       state.apiName = ''
       state.url = ''
-      state.method = 'GET'
+      state.method = 'POST'
       state.jsonText = ''
       state.queryConditions = []
       state.queryForm = {}
@@ -276,7 +172,7 @@ export default {
         list: [],
         total: 0,
         page: 1,
-        pageSize: state.pagination.pageSize || 10
+        pageSize: RESULT_PAGE_SIZE
       }
       state.responseRawJson = ''
       state.loading = false
@@ -284,10 +180,10 @@ export default {
       state.statusCode = null
       state.responseTime = 0
       state.activeResultMode = 'table'
-      state.tradeName = 'query_ta_dividend'
+      state.tradeName = DEFAULT_TRADE_NAME
       state.pagination = {
         page: 1,
-        pageSize: state.pagination.pageSize || 10,
+        pageSize: RESULT_PAGE_SIZE,
         total: 0
       }
     }
@@ -295,6 +191,7 @@ export default {
   actions: {
     async fetchInterfaceList({ state, commit, dispatch }) {
       try {
+        // 启动时先拉可选接口列表；如果失败，退回本地 mock 清单。
         let data
         if ((state.interfaceListApiUrl || '').startsWith('mock://')) {
           data = getMockResponse(state.interfaceListApiUrl, 'GET', {})
@@ -305,41 +202,24 @@ export default {
 
         const list = data?.data?.list || data?.list || []
         if (!Array.isArray(list) || !list.length) {
-          commit('SET_INTERFACE_OPTIONS', FALLBACK_INTERFACES)
-          const firstFallback = FALLBACK_INTERFACES[0]
-          if (firstFallback) {
-            commit('SET_API_NAME', firstFallback.apiName)
-            commit('SET_URL', firstFallback.url)
-            commit('SET_METHOD', firstFallback.method || 'GET')
-            await dispatch('fetchQueryConditions', firstFallback.apiName)
-          }
+          commit('SET_INTERFACE_OPTIONS', MOCK_INTERFACE_LIST)
+          await applySelectedInterface(commit, dispatch, MOCK_INTERFACE_LIST[0])
           return { ok: false, message: '接口列表为空，已使用默认列表' }
         }
 
         commit('SET_INTERFACE_OPTIONS', list)
         const selectedName = list.find((item) => item.apiName === state.apiName)?.apiName || list[0]?.apiName
         const selected = list.find((item) => item.apiName === selectedName)
-        if (selected && selected.apiName) {
-          commit('SET_API_NAME', selected.apiName)
-          commit('SET_URL', selected.url || '')
-          commit('SET_METHOD', selected.method || 'GET')
-          await dispatch('fetchQueryConditions', selected.apiName)
-        }
+        await applySelectedInterface(commit, dispatch, selected)
         return { ok: true }
       } catch (err) {
-        commit('SET_INTERFACE_OPTIONS', FALLBACK_INTERFACES)
-        const firstFallback = FALLBACK_INTERFACES[0]
-        if (firstFallback) {
-          commit('SET_API_NAME', firstFallback.apiName)
-          commit('SET_URL', firstFallback.url)
-          commit('SET_METHOD', firstFallback.method || 'GET')
-          await dispatch('fetchQueryConditions', firstFallback.apiName)
-        }
+        commit('SET_INTERFACE_OPTIONS', MOCK_INTERFACE_LIST)
+        await applySelectedInterface(commit, dispatch, MOCK_INTERFACE_LIST[0])
         return { ok: false, message: '查询接口列表失败，已使用默认列表' }
       }
     },
     async fetchQueryConditions({ state, commit }, apiName) {
-      const interfaceCode = state.interfaceCodeMap?.[apiName] || 'query_ta_dividend'
+      const interfaceCode = state.interfaceCodeMap?.[apiName] || DEFAULT_TRADE_NAME
       try {
         const payload = { params: { interface_code: interfaceCode } }
         let data
@@ -390,6 +270,7 @@ export default {
       commit('SET_ERROR', '')
       commit('SET_STATUS_CODE', null)
 
+      // tradeName 用于字段中文映射、导出命名和详情弹窗标题。
       const selectedTradeName = state.interfaceCodeMap?.[state.apiName] || ''
       const tradeName = getTradeName(requestUrl, requestParams, selectedTradeName)
       commit('SET_TRADE_NAME', tradeName)
@@ -412,7 +293,7 @@ export default {
         commit('SET_RESPONSE_TABLE', table)
         commit('SET_PAGINATION', {
           page: 1,
-          pageSize: state.pagination.pageSize,
+          pageSize: RESULT_PAGE_SIZE,
           total: table.total
         })
         return { ok: true }
@@ -421,14 +302,14 @@ export default {
         commit('SET_RESPONSE_TIME', end - start)
         commit('SET_STATUS_CODE', err.response?.status || null)
         commit('SET_RESPONSE_DATA', err.response?.data || null)
-        commit('SET_RESPONSE_TABLE', { list: [], total: 0, page: 1, pageSize: state.pagination.pageSize })
-        commit('SET_PAGINATION', { total: 0 })
+        commit('SET_RESPONSE_TABLE', { list: [], total: 0, page: 1, pageSize: RESULT_PAGE_SIZE })
+        commit('SET_PAGINATION', { page: 1, pageSize: RESULT_PAGE_SIZE, total: 0 })
         commit('SET_ERROR', err.normalizedMessage || err.message || '请求失败')
         return { ok: false }
       } finally {
         commit('SET_LOADING', false)
       }
-    },
+    }
   },
   getters: {
     requestParams: (state) => buildRequestParams(state.params),

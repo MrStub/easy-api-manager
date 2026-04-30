@@ -69,7 +69,7 @@ export default {
     },
     tradeName: {
       type: String,
-      default: 'query_ta_dividend'
+      default: 'query_trade'
     }
   },
   data() {

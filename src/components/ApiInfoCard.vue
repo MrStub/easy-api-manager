@@ -3,11 +3,13 @@
     <div slot="header" class="card-title">接口信息</div>
     <el-form label-position="top" class="api-form">
       <el-row :gutter="16">
-        <el-col :xs="24" :sm="24" :md="8" :lg="8">
+        <el-col :xs="24" :sm="24" :md="12" :lg="12">
           <el-form-item label="接口名称">
             <el-select
               filterable
               :value="apiName"
+              class="api-select"
+              popper-class="api-select-popper"
               placeholder="可输入或选择已有接口"
               @change="$emit('update:apiName', $event)"
             >
@@ -15,27 +17,7 @@
             </el-select>
           </el-form-item>
         </el-col>
-
-        <el-col :xs="24" :sm="24" :md="10" :lg="10">
-          <el-form-item label="请求地址 URL">
-            <el-input
-              :value="url"
-              placeholder="https://api.example.com/user/list"
-              @input="$emit('update:url', $event)"
-            />
-          </el-form-item>
-        </el-col>
-
-        <el-col :xs="24" :sm="24" :md="6" :lg="6">
-          <el-form-item label="请求方式">
-            <el-select :value="method" @change="$emit('update:method', $event)">
-              <el-option label="GET" value="GET" />
-              <el-option label="POST" value="POST" />
-            </el-select>
-          </el-form-item>
-        </el-col>
       </el-row>
-
     </el-form>
   </el-card>
 </template>
@@ -48,10 +30,7 @@ export default {
     apiOptions: {
       type: Array,
       default: () => []
-    },
-    url: String,
-    method: String,
-    loading: Boolean
+    }
   }
 }
 </script>
@@ -62,9 +41,34 @@ export default {
   font-weight: 600;
 }
 
+.api-select {
+  width: 100%;
+}
+
+.api-select :deep(.el-input__inner) {
+  padding-right: 36px;
+}
+
 @media (max-width: 768px) {
   .card-title {
     font-size: 20px;
   }
+}
+</style>
+
+<style>
+.api-select-popper {
+  min-width: 520px !important;
+  max-width: min(90vw, 760px);
+}
+
+.api-select-popper .el-select-dropdown__item {
+  height: auto;
+  min-height: 34px;
+  line-height: 1.5;
+  white-space: normal;
+  word-break: break-word;
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 </style>
